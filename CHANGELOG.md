@@ -43,6 +43,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Refactored Constants:** Moved the default Amazon Q monthly limit to the `amazon-q.ts` module to improve code decoupling and maintainability.
 
+## [0.9.2] - 2026-02-20
+
+### Added
+
+- **Enhanced Diagnostics:** Expanded `QuotaResult` to include standardized `reason` codes (e.g., `auth_failed`, `network_error`) and `rawError` objects, enabling programmatic troubleshooting by SDK consumers.
+
+### Changed
+
+- **Clean Gemini Display:** Optimized the Gemini output by deduplicating and simplifying model identifiers (e.g., showing just "pro" and "flash" instead of a full list of variants).
+
 ## [0.9.1] - 2026-02-20
 
 ### Added

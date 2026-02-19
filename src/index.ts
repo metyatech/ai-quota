@@ -24,7 +24,8 @@ import type {
   RateLimitSnapshot,
   QuotaResult,
   AgentStatus,
-  GlobalSummary
+  GlobalSummary,
+  ErrorReason
 } from "./types.js";
 
 // ---------------------------------------------------------------------------
@@ -101,9 +102,29 @@ export type {
 const DEFAULT_SKIPPED_RESULT: QuotaResult<null> = {
   status: "no-data",
   data: null,
+  reason: null,
   error: null,
   display: "skipped"
 };
+
+function classifyError(e: unknown): { reason: ErrorReason; message: string } {
+  const msg = e instanceof Error ? e.message : String(e);
+  let reason: ErrorReason = "unknown";
+
+  if (msg.includes("credentials not found") || msg.includes("no credentials")) {
+    reason = "no_credentials";
+  } else if (msg.includes("expired") || msg.includes("401") || msg.includes("403") || msg.includes("Forbidden")) {
+    reason = "auth_failed";
+  } else if (msg.includes("timeout") || msg.includes("AbortError")) {
+    reason = "timeout";
+  } else if (msg.includes("fetch failed") || msg.includes("Network")) {
+    reason = "network_error";
+  } else if (msg.includes("failed:") || msg.includes("API Error")) {
+    reason = "api_error";
+  }
+
+  return { reason, message: msg };
+}
 
 /**
  * Fetches quota/usage for specified agents (or all by default) using default credential discovery.
@@ -127,7 +148,7 @@ export async function fetchAllRateLimits(options?: {
     claude: async () => {
       try {
         const data = await fetchClaudeRateLimits(timeout * 1000);
-        if (!data) return { status: "no-data", data: null, error: null, display: "no data" };
+        if (!data) return { status: "no-data", data: null, reason: "no_credentials", error: null, display: "no data" };
         const buckets: string[] = [];
         if (data.five_hour) {
           const resetIn = formatResetIn(new Date(data.five_hour.resets_at));
@@ -137,62 +158,72 @@ export async function fetchAllRateLimits(options?: {
           const resetIn = formatResetIn(new Date(data.seven_day.resets_at));
           buckets.push(`7d: ${Math.round(data.seven_day.utilization)}% (resets in ${resetIn})`);
         }
-        return { status: "ok", data, error: null, display: buckets.join(", ") || "no data" };
+        return { status: "ok", data, reason: null, error: null, display: buckets.join(", ") || "no data" };
       } catch (e) {
-        return { status: "error", data: null, error: String(e), display: `error: ${e}` };
+        const { reason, message } = classifyError(e);
+        return { status: "error", data: null, reason, error: message, rawError: e, display: `error: ${reason}` };
       }
     },
     gemini: async () => {
       try {
         const data = await fetchGeminiRateLimits();
-        if (!data) return { status: "no-data", data: null, error: null, display: "no data" };
+        if (!data) return { status: "no-data", data: null, reason: "no_credentials", error: null, display: "no data" };
         const models: string[] = [];
-        const pro = data["gemini-3-pro-preview"];
-        const flash = data["gemini-3-flash-preview"];
-        if (pro) models.push(`Pro: ${Math.round(pro.usage)}% (resets in ${formatResetIn(pro.resetAt)})`);
-        if (flash) models.push(`Flash: ${Math.round(flash.usage)}% (resets in ${formatResetIn(flash.resetAt)})`);
-        return { status: "ok", data, error: null, display: models.join(", ") || "no data" };
+        const seen = new Set<string>();
+        for (const [modelId, usage] of Object.entries(data)) {
+          if (!usage) continue;
+          // Simplify model names (e.g., "gemini-3-pro-preview" -> "pro")
+          const name = modelId.includes("pro") ? "pro" : modelId.includes("flash") ? "flash" : modelId;
+          if (seen.has(name)) continue;
+          seen.add(name);
+          models.push(`${name}: ${Math.round(usage.usage)}% (resets in ${formatResetIn(usage.resetAt)})`);
+        }
+        return { status: "ok", data, reason: null, error: null, display: models.join(", ") || "no data" };
       } catch (e) {
-        return { status: "error", data: null, error: String(e), display: `error: ${e}` };
+        const { reason, message } = classifyError(e);
+        return { status: "error", data: null, reason, error: message, rawError: e, display: `error: ${reason}` };
       }
     },
     copilot: async () => {
       try {
         const token = getCopilotToken(verbose);
-        if (!token) return { status: "no-data", data: null, error: null, display: "no data (auth required)" };
+        if (!token) return { status: "no-data", data: null, reason: "no_credentials", error: null, display: "auth required" };
         const data = await fetchCopilotRateLimits({ token, timeoutSeconds: timeout });
-        if (!data) return { status: "no-data", data: null, error: null, display: "no data" };
+        if (!data) return { status: "no-data", data: null, reason: "api_error", error: null, display: "no data" };
         const usedPercent = Math.round(100 - data.percentRemaining);
-        return { status: "ok", data, error: null, display: `${usedPercent}% used (resets in ${formatResetIn(data.resetAt)})` };
+        return { status: "ok", data, reason: null, error: null, display: `${usedPercent}% used (resets in ${formatResetIn(data.resetAt)})` };
       } catch (e) {
-        return { status: "error", data: null, error: String(e), display: `error: ${e}` };
+        const { reason, message } = classifyError(e);
+        return { status: "error", data: null, reason, error: message, rawError: e, display: `error: ${reason}` };
       }
     },
     "amazon-q": async () => {
       try {
         const envPath = process.env.AMAZON_Q_STATE_PATH;
         const statePath = envPath ? envPath : resolveAmazonQUsageStatePath(os.homedir());
-
+        
         const envLimit = process.env.AMAZON_Q_MONTHLY_LIMIT;
         const limit = envLimit ? parseInt(envLimit, 10) : DEFAULT_AMAZON_Q_MONTHLY_LIMIT;
         const finalLimit = isNaN(limit) ? DEFAULT_AMAZON_Q_MONTHLY_LIMIT : limit;
 
         const data = fetchAmazonQRateLimits(statePath, finalLimit);
-        return { status: "ok", data, error: null, display: `${data.used}/${data.limit} requests used` };
+        return { status: "ok", data, reason: null, error: null, display: `${data.used}/${data.limit} requests used` };
       } catch (e) {
-        return { status: "error", data: null, error: String(e), display: `error: ${e}` };
+        const { reason, message } = classifyError(e);
+        return { status: "error", data: null, reason, error: message, rawError: e, display: `error: ${reason}` };
       }
     },
     codex: async () => {
       try {
         const data = await fetchCodexRateLimits({ timeoutSeconds: timeout });
-        if (!data) return { status: "no-data", data: null, error: null, display: "no data" };
+        if (!data) return { status: "no-data", data: null, reason: "no_credentials", error: null, display: "no data" };
         const status = rateLimitSnapshotToStatus(data);
-        if (!status || status.windows.length === 0) return { status: "no-data", data, error: null, display: "no data" };
+        if (!status || status.windows.length === 0) return { status: "no-data", data, reason: "api_error", error: null, display: "no data" };
         const disp = status.windows.map(w => `${w.label}: ${Math.round(100 - w.percentLeft)}% (resets in ${formatResetIn(w.resetAt)})`).join(", ");
-        return { status: "ok", data, error: null, display: disp };
+        return { status: "ok", data, reason: null, error: null, display: disp };
       } catch (e) {
-        return { status: "error", data: null, error: String(e), display: `error: ${e}` };
+        const { reason, message } = classifyError(e);
+        return { status: "error", data: null, reason, error: message, rawError: e, display: `error: ${reason}` };
       }
     }
   };
@@ -216,10 +247,9 @@ export async function fetchAllRateLimits(options?: {
 
   for (const { name, result } of results) {
     const sdkKey = agentToSdkKey(name);
-    // @ts-ignore - Result mapping is internally consistent but TS can't trace the generic T through the fetchers map
+    // @ts-ignore
     finalResult[sdkKey] = result;
 
-    // Calculate overall status
     if (result.status === "error") criticalCount++;
     const match = result.display.match(/(\d+)%/);
     if (match) {

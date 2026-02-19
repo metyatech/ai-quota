@@ -159,6 +159,17 @@ export type AmazonQUsageSnapshot = {
 export type AgentStatus = "ok" | "no-data" | "error";
 
 /**
+ * Standard error reasons for a failed fetch operation.
+ */
+export type ErrorReason = 
+  | "auth_failed" 
+  | "network_error" 
+  | "api_error" 
+  | "no_credentials" 
+  | "timeout" 
+  | "unknown";
+
+/**
  * Generic result wrapper for a single agent's quota information.
  */
 export type QuotaResult<T> = {
@@ -166,8 +177,12 @@ export type QuotaResult<T> = {
   status: AgentStatus;
   /** The actual quota data, or null if fetch failed or no data was found */
   data: T | null;
+  /** Primary error reason code */
+  reason: ErrorReason | null;
   /** Error message if status is "error" */
   error: string | null;
+  /** Optional raw error object for deeper inspection */
+  rawError?: unknown;
   /** Human-readable display string summarizing the status */
   display: string;
 };
