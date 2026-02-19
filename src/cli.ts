@@ -37,7 +37,9 @@ function showHelp(): void {
       "  ai-quota --verbose         Show extra debug info on stderr\n" +
       "  ai-quota --help            Show this help message\n" +
       "  ai-quota --version         Show version\n\n" +
-      "Agents: " + SUPPORTED_AGENTS.join(", ") + "\n"
+      "Agents: " + SUPPORTED_AGENTS.join(", ") + "\n" +
+      "Output: {window}: {N}% used (resets in {time})\n" +
+      "Note: Percents are utilization (used), not remaining. Use --json for scripts.\n"
   );
 }
 
@@ -114,6 +116,11 @@ async function main(): Promise<void> {
     } else if (!quiet) {
       process.stdout.write(`${padName(agent)} ${res.display}\n`);
     }
+  }
+
+  if (!jsonMode && !quiet) {
+    const status = allResults.summary.status.toUpperCase();
+    process.stdout.write(`\nStatus: ${status} — ${allResults.summary.message}\n`);
   }
 
   if (jsonMode && !quiet) {

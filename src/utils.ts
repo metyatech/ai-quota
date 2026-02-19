@@ -13,11 +13,17 @@ export function formatResetIn(resetAt: Date, now: Date = new Date()): string {
   const diffMs = resetAt.getTime() - now.getTime();
   if (diffMs <= 0) return "already reset";
   const totalMinutes = Math.floor(diffMs / 60000);
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  if (hours === 0) return `${minutes}m`;
-  if (minutes === 0) return `${hours}h`;
-  return `${hours}h ${minutes}m`;
+  const days = Math.floor(totalMinutes / (60 * 24));
+  const remainingMinutes = totalMinutes - days * 60 * 24;
+  const hours = Math.floor(remainingMinutes / 60);
+  const minutes = remainingMinutes % 60;
+
+  const parts: string[] = [];
+  if (days > 0) parts.push(`${days}d`);
+  if (hours > 0) parts.push(`${hours}h`);
+  if (minutes > 0 || parts.length === 0) parts.push(`${minutes}m`);
+
+  return parts.join(" ");
 }
 
 /**

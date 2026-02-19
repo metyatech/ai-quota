@@ -152,11 +152,11 @@ export async function fetchAllRateLimits(options?: {
         const buckets: string[] = [];
         if (data.five_hour) {
           const resetIn = formatResetIn(new Date(data.five_hour.resets_at));
-          buckets.push(`5h: ${Math.round(data.five_hour.utilization)}% (resets in ${resetIn})`);
+          buckets.push(`5h: ${Math.round(data.five_hour.utilization)}% used (resets in ${resetIn})`);
         }
         if (data.seven_day) {
           const resetIn = formatResetIn(new Date(data.seven_day.resets_at));
-          buckets.push(`7d: ${Math.round(data.seven_day.utilization)}% (resets in ${resetIn})`);
+          buckets.push(`7d: ${Math.round(data.seven_day.utilization)}% used (resets in ${resetIn})`);
         }
         return { status: "ok", data, reason: null, error: null, display: buckets.join(", ") || "no data" };
       } catch (e) {
@@ -176,7 +176,7 @@ export async function fetchAllRateLimits(options?: {
           const name = modelId.includes("pro") ? "pro" : modelId.includes("flash") ? "flash" : modelId;
           if (seen.has(name)) continue;
           seen.add(name);
-          models.push(`${name}: ${Math.round(usage.usage)}% (resets in ${formatResetIn(usage.resetAt)})`);
+          models.push(`${name}: ${Math.round(usage.usage)}% used (resets in ${formatResetIn(usage.resetAt)})`);
         }
         return { status: "ok", data, reason: null, error: null, display: models.join(", ") || "no data" };
       } catch (e) {
@@ -207,7 +207,15 @@ export async function fetchAllRateLimits(options?: {
         const finalLimit = isNaN(limit) ? DEFAULT_AMAZON_Q_MONTHLY_LIMIT : limit;
 
         const data = fetchAmazonQRateLimits(statePath, finalLimit);
-        return { status: "ok", data, reason: null, error: null, display: `${data.used}/${data.limit} requests used` };
+        const usedPercent =
+          data.limit <= 0 ? 0 : Math.min(100, Math.max(0, Math.round((data.used / data.limit) * 100)));
+        return {
+          status: "ok",
+          data,
+          reason: null,
+          error: null,
+          display: `${data.used}/${data.limit} requests used (${usedPercent}% used, resets in ${formatResetIn(data.resetAt)})`
+        };
       } catch (e) {
         const { reason, message } = classifyError(e);
         return { status: "error", data: null, reason, error: message, rawError: e, display: `error: ${reason}` };
@@ -219,7 +227,9 @@ export async function fetchAllRateLimits(options?: {
         if (!data) return { status: "no-data", data: null, reason: "no_credentials", error: null, display: "no data" };
         const status = rateLimitSnapshotToStatus(data);
         if (!status || status.windows.length === 0) return { status: "no-data", data, reason: "api_error", error: null, display: "no data" };
-        const disp = status.windows.map(w => `${w.label}: ${Math.round(100 - w.percentLeft)}% (resets in ${formatResetIn(w.resetAt)})`).join(", ");
+        const disp = status.windows
+          .map((w) => `${w.label}: ${Math.round(100 - w.percentLeft)}% used (resets in ${formatResetIn(w.resetAt)})`)
+          .join(", ");
         return { status: "ok", data, reason: null, error: null, display: disp };
       } catch (e) {
         const { reason, message } = classifyError(e);
@@ -251,10 +261,11 @@ export async function fetchAllRateLimits(options?: {
     finalResult[sdkKey] = result;
 
     if (result.status === "error") criticalCount++;
-    const match = result.display.match(/(\d+)%/);
-    if (match) {
-      const percent = parseInt(match[1], 10);
-      maxStress = Math.max(maxStress, percent);
+    for (const match of result.display.matchAll(/(\d+)%/g)) {
+      const percent = parseInt(match[1] ?? "0", 10);
+      if (Number.isFinite(percent)) {
+        maxStress = Math.max(maxStress, percent);
+      }
     }
   }
 

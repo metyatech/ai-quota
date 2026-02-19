@@ -25,6 +25,7 @@ describe("handleMcpMessage", () => {
   it("handles tools/call request for get_quota", async () => {
     // Mock fetchAllRateLimits to avoid real network/file calls
     vi.spyOn(index, "fetchAllRateLimits").mockResolvedValue({
+      summary: { status: "healthy", message: "ok" },
       claude: { status: "ok", display: "10%", data: null, error: null },
       gemini: { status: "ok", display: "20%", data: null, error: null },
       copilot: { status: "ok", display: "30%", data: null, error: null },

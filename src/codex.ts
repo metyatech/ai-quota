@@ -150,7 +150,7 @@ export function rateLimitSnapshotToStatus(
   if (weeklyCandidate?.data.resetAt) {
     windows.push({
       key: "weekly",
-      label: "Weekly",
+      label: "7d",
       percentLeft: clampPercent(100 - weeklyCandidate.data.usedPercent),
       resetAt: weeklyCandidate.data.resetAt,
       resetText: weeklyCandidate.data.resetAt.toISOString()

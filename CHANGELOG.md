@@ -43,6 +43,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Refactored Constants:** Moved the default Amazon Q monthly limit to the `amazon-q.ts` module to improve code decoupling and maintainability.
 
+## [0.9.3] - 2026-02-19
+
+### Added
+
+- **MCP handler export:** Added `handleMcpMessage` for unit testing and embedding the MCP server logic.
+- **Regression tests:** Added coverage for day-based reset formatting and normalized display strings.
+
+### Changed
+
+- **CLI output clarity:** Percentages are now explicitly labeled as `% used` (not remaining), reset times use day-based formatting for long durations, Codex weekly is shown as `7d`, Amazon Q includes reset time and percent used, and the CLI prints a final global status line.
+- **Help legend:** `ai-quota --help` now explains the output format and recommends `--json` for scripts.
+- **Summary calculation:** Global health now considers the maximum usage percentage across all windows in the display string.
+
 ## [0.9.2] - 2026-02-20
 
 ### Added
