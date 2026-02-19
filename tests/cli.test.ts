@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatResetIn } from "../src/index.js";
+import { formatResetIn } from "../src/utils.js";
 
 describe("formatResetIn", () => {
   it("formats minutes correctly", () => {
