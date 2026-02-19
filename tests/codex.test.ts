@@ -143,6 +143,37 @@ describe("fetchCodexRateLimits – JSONL session files", () => {
     expect(result?.secondary?.used_percent).toBe(15);
   });
 
+  it("reads rate limits from modern wrapped event_msg format", async () => {
+    const now = new Date();
+    const yyyy = now.getFullYear().toString();
+    const mm = (now.getMonth() + 1).toString().padStart(2, "0");
+    const dd = now.getDate().toString().padStart(2, "0");
+    const dayDir = join(tmpDir, "sessions", yyyy, mm, dd);
+    await mkdir(dayDir, { recursive: true });
+
+    // The modern format found during debugging
+    const entry = {
+      timestamp: now.toISOString(),
+      type: "event_msg",
+      payload: {
+        type: "token_count",
+        info: {
+          rate_limits: {
+            primary: { used_percent: 65, window_minutes: 300, resets_at: 1771505456 },
+            secondary: { used_percent: 21, window_minutes: 10080, resets_at: 1772067074 }
+          }
+        }
+      }
+    };
+    await writeFile(join(dayDir, "rollout-modern.jsonl"), JSON.stringify(entry) + "\n");
+
+    const result = await fetchCodexRateLimits({ codexHome: tmpDir });
+    expect(result).not.toBeNull();
+    expect(result?.primary?.used_percent).toBe(65);
+    expect(result?.secondary?.used_percent).toBe(21);
+    expect(result?.primary?.window_minutes).toBe(300);
+  });
+
   it("skips JSONL lines that are not token_count type", async () => {
     const now = new Date();
     const yyyy = now.getFullYear().toString();
