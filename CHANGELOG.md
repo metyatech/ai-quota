@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2] - 2026-02-19
+
+### Changed
+
+- Updated `tsconfig.build.json` to include the `scripts` directory in the build.
+- Refactored `scripts/verify-live.ts` to use the new high-level SDK API.
+
+## [0.4.1] - 2026-02-19
+
+### Fixed
+
+- Fixed incorrect import paths in unit tests and CLI following the SDK refactoring.
+- Exported `formatResetIn` from the main entry point.
+
 ## [0.4.0] - 2026-02-19
 
 ### Added
