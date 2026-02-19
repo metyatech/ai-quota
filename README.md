@@ -98,16 +98,28 @@ Exit code is `0` on success. Exit code `1` if any agent fetch fails.
 
 ### Advanced usage (SDK)
 
-To fetch quota for all agents at once in your TypeScript/JavaScript project:
+To fetch quota for all agents at once:
 
 ```typescript
 import { fetchAllRateLimits } from "@metyatech/ai-quota";
 
 const all = await fetchAllRateLimits();
-
 console.log("Claude status:", all.claude.display);
-console.log("Gemini Pro data:", all.gemini.data?.["gemini-3-pro-preview"]);
-console.log("Copilot status:", all.copilot.status); // "ok", "no-data", or "error"
+```
+
+To fetch only specific agents (more efficient):
+
+```typescript
+import { fetchAllRateLimits } from "@metyatech/ai-quota";
+
+// Only fetch Claude and Copilot
+const results = await fetchAllRateLimits({
+  agents: ["claude", "copilot"]
+});
+
+console.log(results.claude.display);
+console.log(results.copilot.display);
+console.log(results.gemini.display); // "skipped"
 ```
 
 ## Supported agents
