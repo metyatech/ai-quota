@@ -43,6 +43,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Refactored Constants:** Moved the default Amazon Q monthly limit to the `amazon-q.ts` module to improve code decoupling and maintainability.
 
+## [0.5.8] - 2026-02-19
+
+### Changed
+
+- **Refactored Utilities:** Centralized version resolution logic into a shared `utils.ts` module, removing code duplication between the CLI and MCP server.
+
 ## [0.5.7] - 2026-02-19
 
 ### Added

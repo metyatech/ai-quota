@@ -7,19 +7,7 @@ import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { fetchAllRateLimits, runMcpServer } from "./index.js";
-import { formatResetIn } from "./utils.js";
-
-function getVersion(): string {
-  try {
-    const require = createRequire(import.meta.url);
-    const dir = path.dirname(fileURLToPath(import.meta.url));
-    const pkgPath = path.resolve(dir, "..", "package.json");
-    const pkg = require(pkgPath) as { version?: string };
-    return pkg.version ?? "0.0.0";
-  } catch {
-    return "0.0.0";
-  }
-}
+import { formatResetIn, getVersion } from "./utils.js";
 
 function padName(name: string): string {
   return (name + ":").padEnd(11);

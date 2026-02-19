@@ -4,23 +4,9 @@
  * Provides a 'get_quota' tool for AI agents to check their own usage limits.
  */
 
-import { createRequire } from "node:module";
-import { fileURLToPath } from "node:url";
-import path from "node:path";
 import { fetchAllRateLimits } from "./index.js";
 import type { AllRateLimits } from "./types.js";
-
-function getVersion(): string {
-  try {
-    const require = createRequire(import.meta.url);
-    const dir = path.dirname(fileURLToPath(import.meta.url));
-    const pkgPath = path.resolve(dir, "..", "package.json");
-    const pkg = require(pkgPath) as { version?: string };
-    return pkg.version ?? "0.0.0";
-  } catch {
-    return "0.0.0";
-  }
-}
+import { getVersion } from "./utils.js";
 
 export interface McpRequest {
   jsonrpc: string;
