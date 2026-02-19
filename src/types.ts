@@ -89,3 +89,24 @@ export type AmazonQUsageSnapshot = {
   resetAt: Date;
   periodKey: string;
 };
+
+// ---------------------------------------------------------------------------
+// Aggregated types
+// ---------------------------------------------------------------------------
+
+export type AgentStatus = "ok" | "no-data" | "error";
+
+export type QuotaResult<T> = {
+  status: AgentStatus;
+  data: T | null;
+  error: string | null;
+  display: string;
+};
+
+export type AllRateLimits = {
+  claude: QuotaResult<ClaudeUsageData>;
+  gemini: QuotaResult<GeminiUsage>;
+  copilot: QuotaResult<CopilotUsage>;
+  amazonQ: QuotaResult<AmazonQUsageSnapshot>;
+  codex: QuotaResult<RateLimitSnapshot>;
+};
