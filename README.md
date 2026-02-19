@@ -54,6 +54,9 @@ Add the following to your `claude_desktop_config.json`:
 This exposes the `get_quota` tool to Claude, which it can use to stay aware of its own usage
 limits across different models and providers.
 
+**Tool: `get_quota`**
+- `agent` (optional): Specific agent to check (`claude`, `gemini`, etc.). If omitted, returns quota for all agents in a Markdown table.
+
 ### Human-readable output example
 
 ```
