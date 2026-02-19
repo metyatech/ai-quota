@@ -43,6 +43,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Refactored Constants:** Moved the default Amazon Q monthly limit to the `amazon-q.ts` module to improve code decoupling and maintainability.
 
+## [0.7.0] - 2026-02-19
+
+### Added
+
+- **Selective Fetching:** The `fetchAllRateLimits` API now supports an optional `agents` parameter, allowing users to fetch quota only for specific providers. This improves performance and reduces unnecessary API calls.
+
+### Changed
+
+- **Robust Orchestration:** Refactored the internal SDK logic to map results by agent name instead of array indices, making the codebase more resilient to future changes.
+- **CLI/MCP Optimization:** Both the CLI and MCP server now leverage selective fetching when a single agent is requested.
+
 ## [0.6.1] - 2026-02-19
 
 ### Fixed

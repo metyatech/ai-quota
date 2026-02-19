@@ -73,19 +73,20 @@ export async function handleMcpMessage(request: McpRequest): Promise<McpResponse
       };
     } 
     
-    if (request.method === "tools/call") {
-      const params = request.params as McpToolCallParams;
-      if (params.name === "get_quota") {
-        const all = await fetchAllRateLimits();
-        const agent = params.arguments?.agent;
-        
-        let markdown: string;
-        if (agent && (SUPPORTED_AGENTS as readonly string[]).includes(agent)) {
-          const sdkKey = agent === "amazon-q" ? "amazonQ" : (agent as keyof AllRateLimits);
-          const res = all[sdkKey];
-          markdown = `### Quota for ${agent}\n\n| Agent | Status | Usage/Limit |\n| :--- | :--- | :--- |\n| ${agent} | ${res.status} | ${res.display} |`;
-        } else {
-          markdown = "### Current AI Agent Quotas\n\n| Agent | Status | Usage/Limit |\n| :--- | :--- | :--- |\n";
+            if (request.method === "tools/call") {
+          const params = request.params as McpToolCallParams;
+          if (params.name === "get_quota") {
+            const agent = params.arguments?.agent;
+            const all = await fetchAllRateLimits({
+              agents: agent ? [agent as any] : undefined
+            });
+            
+            let markdown: string;
+            if (agent) {
+              const sdkKey = agent === "amazon-q" ? "amazonQ" : (agent as keyof AllRateLimits);
+              const res = all[sdkKey];
+              markdown = `### Quota for ${agent}\n\n| Agent | Status | Usage/Limit |\n| :--- | :--- | :--- |\n| ${agent} | ${res.status} | ${res.display} |`;
+            } else {          markdown = "### Current AI Agent Quotas\n\n| Agent | Status | Usage/Limit |\n| :--- | :--- | :--- |\n";
           markdown += (Object.entries(all) as [keyof AllRateLimits, AllRateLimits[keyof AllRateLimits]][])
             .map(([k, v]) => `| ${k === "amazonQ" ? "amazon-q" : k} | ${v.status} | ${v.display} |`)
             .join("\n");

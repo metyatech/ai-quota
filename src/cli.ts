@@ -6,7 +6,7 @@
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { fetchAllRateLimits, runMcpServer, SUPPORTED_AGENTS, AllRateLimits } from "./index.js";
+import { fetchAllRateLimits, runMcpServer, SUPPORTED_AGENTS, AllRateLimits, SupportedAgent } from "./index.js";
 import { formatResetIn, getVersion } from "./utils.js";
 
 function padName(name: string): string {
@@ -45,14 +45,17 @@ async function main(): Promise<void> {
   const quiet = args.includes("--quiet");
     const verbose = args.includes("--verbose");
   
-    const requestedAgents = args.filter((a) => !a.startsWith("-"));
-  
-    const allResults = await fetchAllRateLimits({ verbose, timeoutSeconds: 10 });
-  
-    const agentsToDisplay = (
-      requestedAgents.length > 0 ? requestedAgents : [...SUPPORTED_AGENTS]
-    ) as string[];
-  
+      const requestedAgents = args.filter((a) => !a.startsWith("-")) as SupportedAgent[];
+    
+      const allResults = await fetchAllRateLimits({
+        agents: requestedAgents.length > 0 ? requestedAgents : undefined,
+        verbose,
+        timeoutSeconds: 10
+      });
+    
+      const agentsToDisplay = (
+        requestedAgents.length > 0 ? requestedAgents : [...SUPPORTED_AGENTS]
+      ) as string[];  
     let anyError = false;
     const outputJson: Record<string, unknown> = {};
   

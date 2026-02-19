@@ -22,7 +22,8 @@ import type {
   CopilotUsage,
   AmazonQUsageSnapshot,
   RateLimitSnapshot,
-  QuotaResult
+  QuotaResult,
+  AgentStatus
 } from "./types.js";
 
 // ---------------------------------------------------------------------------
@@ -34,8 +35,15 @@ import type {
  */
 export const SUPPORTED_AGENTS = ["claude", "gemini", "copilot", "amazon-q", "codex"] as const;
 
+/**
+ * Type representing supported agent identifiers.
+ */
+export type SupportedAgent = (typeof SUPPORTED_AGENTS)[number];
+
 // Shared types
 export type * from "./types.js";
+
+// High-level Orchestration API (Implementation is below)
 
 // Utilities
 export { formatResetIn } from "./utils.js";
@@ -76,27 +84,33 @@ export type {
 // High-level Orchestration API Implementation
 // ---------------------------------------------------------------------------
 
+const DEFAULT_SKIPPED_RESULT: QuotaResult<any> = {
+  status: "no-data",
+  data: null,
+  error: null,
+  display: "skipped"
+};
+
 /**
- * Fetches quota/usage for all supported agents using default credential discovery.
- * 
- * This is the primary entry point for the SDK, providing a unified interface
- * to gather status across all configured AI providers.
+ * Fetches quota/usage for specified agents (or all by default) using default credential discovery.
  * 
  * @param options - Configuration options for the fetch operation
+ * @param options.agents - List of specific agents to fetch. If omitted, all agents are fetched.
  * @param options.verbose - Enable detailed logging to stderr
  * @param options.timeoutSeconds - Global timeout for network requests (default: 10s)
- * @returns A structured object containing quota information for all agents
+ * @returns A structured object containing quota information for the requested agents
  */
 export async function fetchAllRateLimits(options?: {
+  agents?: SupportedAgent[];
   verbose?: boolean;
   timeoutSeconds?: number;
 }): Promise<AllRateLimits> {
   const verbose = options?.verbose ?? false;
   const timeout = options?.timeoutSeconds ?? 10;
+  const agentsToFetch = options?.agents ?? [...SUPPORTED_AGENTS];
 
-  const results = await Promise.allSettled([
-    // Claude
-    (async (): Promise<QuotaResult<ClaudeUsageData>> => {
+  const fetchers: Record<SupportedAgent, () => Promise<QuotaResult<any>>> = {
+    claude: async () => {
       try {
         const data = await fetchClaudeRateLimits(timeout * 1000);
         if (!data) return { status: "no-data", data: null, error: null, display: "no data" };
@@ -113,10 +127,8 @@ export async function fetchAllRateLimits(options?: {
       } catch (e) {
         return { status: "error", data: null, error: String(e), display: `error: ${e}` };
       }
-    })(),
-
-    // Gemini
-    (async (): Promise<QuotaResult<GeminiUsage>> => {
+    },
+    gemini: async () => {
       try {
         const data = await fetchGeminiRateLimits();
         if (!data) return { status: "no-data", data: null, error: null, display: "no data" };
@@ -129,10 +141,8 @@ export async function fetchAllRateLimits(options?: {
       } catch (e) {
         return { status: "error", data: null, error: String(e), display: `error: ${e}` };
       }
-    })(),
-
-    // Copilot
-    (async (): Promise<QuotaResult<CopilotUsage>> => {
+    },
+    copilot: async () => {
       try {
         const token = getCopilotToken(verbose);
         if (!token) return { status: "no-data", data: null, error: null, display: "no data (auth required)" };
@@ -143,10 +153,8 @@ export async function fetchAllRateLimits(options?: {
       } catch (e) {
         return { status: "error", data: null, error: String(e), display: `error: ${e}` };
       }
-    })(),
-
-    // Amazon Q
-    (async (): Promise<QuotaResult<AmazonQUsageSnapshot>> => {
+    },
+    "amazon-q": async () => {
       try {
         const envPath = process.env.AMAZON_Q_STATE_PATH;
         const statePath = envPath ? envPath : resolveAmazonQUsageStatePath(os.homedir());
@@ -155,10 +163,8 @@ export async function fetchAllRateLimits(options?: {
       } catch (e) {
         return { status: "error", data: null, error: String(e), display: `error: ${e}` };
       }
-    })(),
-
-    // Codex
-    (async (): Promise<QuotaResult<RateLimitSnapshot>> => {
+    },
+    codex: async () => {
       try {
         const data = await fetchCodexRateLimits({ timeoutSeconds: timeout });
         if (!data) return { status: "no-data", data: null, error: null, display: "no data" };
@@ -169,18 +175,28 @@ export async function fetchAllRateLimits(options?: {
       } catch (e) {
         return { status: "error", data: null, error: String(e), display: `error: ${e}` };
       }
-    })()
-  ]);
-
-  const [claude, gemini, copilot, amazonQ, codex] = results.map(r => 
-    r.status === "fulfilled" ? r.value : { status: "error" as const, data: null, error: "Task failed", display: "error" }
-  );
-
-  return {
-    claude: claude as QuotaResult<ClaudeUsageData>,
-    gemini: gemini as QuotaResult<GeminiUsage>,
-    copilot: copilot as QuotaResult<CopilotUsage>,
-    amazonQ: amazonQ as QuotaResult<AmazonQUsageSnapshot>,
-    codex: codex as QuotaResult<RateLimitSnapshot>
+    }
   };
+
+  const pendingPromises = agentsToFetch.map(async (name) => {
+    const result = await fetchers[name]();
+    return { name, result };
+  });
+
+  const results = await Promise.all(pendingPromises);
+
+  const finalResult: AllRateLimits = {
+    claude: DEFAULT_SKIPPED_RESULT,
+    gemini: DEFAULT_SKIPPED_RESULT,
+    copilot: DEFAULT_SKIPPED_RESULT,
+    amazonQ: DEFAULT_SKIPPED_RESULT,
+    codex: DEFAULT_SKIPPED_RESULT
+  };
+
+  for (const { name, result } of results) {
+    const key = name === "amazon-q" ? "amazonQ" : name;
+    (finalResult as any)[key] = result;
+  }
+
+  return finalResult;
 }
