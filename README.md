@@ -21,15 +21,29 @@ npx @metyatech/ai-quota
 ### Commands
 
 ```
-ai-quota [agent]    Show quota for all agents, or a single named agent
-ai-quota --json     Machine-readable JSON output
-ai-quota --quiet    Suppress non-error output (useful in scripts)
-ai-quota --verbose  Print debug info to stderr
-ai-quota --help     Show usage information
-ai-quota --version  Show version
+ai-quota [agent]           Show quota for all agents, or a single named agent
+ai-quota record [agent]    Record usage for agents with local tracking (e.g. amazon-q)
+ai-quota --json            Machine-readable JSON output
+ai-quota --mcp             Start as an MCP server
+ai-quota --quiet           Suppress non-error output (useful in scripts)
+ai-quota --verbose         Print debug info to stderr
+ai-quota --help            Show usage information
+ai-quota --version         Show version
 ```
 
 Supported agent names: `claude`, `gemini`, `copilot`, `amazon-q`, `codex`
+
+### Usage Examples
+
+**Check all quotas:**
+```bash
+ai-quota
+```
+
+**Record Amazon Q usage (+1 request):**
+```bash
+ai-quota record amazon-q
+```
 
 ## Model Context Protocol (MCP)
 
