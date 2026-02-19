@@ -43,6 +43,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Refactored Constants:** Moved the default Amazon Q monthly limit to the `amazon-q.ts` module to improve code decoupling and maintainability.
 
+## [0.5.6] - 2026-02-19
+
+### Added
+
+- **Public Utilities:** Formally exported `formatResetIn` utility for SDK users to maintain consistent time formatting in their own applications.
+
+### Changed
+
+- **SDK Cleanliness:** Reorganized and polished public exports in `src/index.ts` for a better developer experience.
+
 ## [0.5.4] - 2026-02-19
 
 ### Fixed
