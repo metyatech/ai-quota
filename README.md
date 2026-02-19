@@ -6,6 +6,69 @@ This package extracts the **quota fetching** layer from agent-runner so it can b
 independently. Gate/ramp evaluation logic (e.g. `evaluateUsageGate`) is intentionally kept
 out of this package — it remains in the calling application.
 
+## CLI
+
+After installing the package globally or via `npx`, run `ai-quota` to check quota for all agents at once.
+
+```bash
+# Install globally
+npm install -g @metyatech/ai-quota
+
+# Or use with npx (no install required)
+npx @metyatech/ai-quota
+```
+
+### Commands
+
+```
+ai-quota [agent]    Show quota for all agents, or a single named agent
+ai-quota --json     Machine-readable JSON output
+ai-quota --quiet    Suppress non-error output (useful in scripts)
+ai-quota --verbose  Print debug info to stderr
+ai-quota --help     Show usage information
+ai-quota --version  Show version
+```
+
+Supported agent names: `claude`, `gemini`, `copilot`, `amazon-q`, `codex`
+
+### Human-readable output example
+
+```
+claude:    72% used  (resets in 3h 12m)
+gemini:    45% used  (resets in 18h)
+copilot:   28% used  (resets in 9d)
+amazon-q:  12/50 requests used
+codex:     38% used  (resets in 6h)
+```
+
+### JSON output example
+
+```bash
+ai-quota --json
+```
+
+```json
+{
+  "claude": { "usedPercent": 72, "resetsAt": "2026-02-19T18:00:00+09:00" },
+  "gemini": { "usedPercent": 45, "resetsAt": "2026-02-20T00:00:00Z" },
+  "copilot": { "usedPercent": 28, "resetsAt": "2026-03-01T00:00:00Z" },
+  "amazon-q": { "used": 12, "limit": 50, "percentRemaining": 76, "resetsAt": "2026-03-01T00:00:00Z" },
+  "codex": { "usedPercent": 38, "resetsAt": "2026-02-19T22:00:00Z" }
+}
+```
+
+### Credential lookup
+
+| Agent     | Source                                                                 |
+|-----------|------------------------------------------------------------------------|
+| Claude    | `~/.claude/.credentials.json`                                          |
+| Gemini    | `~/.gemini/oauth_creds.json`                                           |
+| Copilot   | `GITHUB_TOKEN` env var, or `~/.config/gh/hosts.yml` (gh CLI token)    |
+| Amazon Q  | `AMAZON_Q_STATE_PATH` env var (defaults to `~/agent-runner/state/`)   |
+| Codex     | `~/.codex/sessions/` JSONL files, or `~/.codex/auth.json`             |
+
+Exit code is `0` on success. Exit code `1` if any agent fetch fails.
+
 ## Supported agents
 
 | Agent     | Source                                      | API type              |

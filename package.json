@@ -1,11 +1,14 @@
 {
   "name": "@metyatech/ai-quota",
-  "version": "0.1.0",
-  "description": "AI agent quota/rate-limit fetching library for Claude, Gemini, Copilot, Amazon Q, and Codex",
+  "version": "0.2.0",
+  "description": "AI agent quota/rate-limit fetching library and CLI for Claude, Gemini, Copilot, Amazon Q, and Codex",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "ai-quota": "./dist/cli.js"
+  },
   "exports": {
     ".": {
       "import": "./dist/index.js",
@@ -30,7 +33,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && node scripts/add-shebang.mjs",
     "test": "vitest run",
     "lint": "eslint . && tsc -p tsconfig.json --noEmit",
     "format": "prettier --write .",
