@@ -123,7 +123,8 @@ export async function fetchAllRateLimits(options?: {
     // Amazon Q
     (async (): Promise<QuotaResult<AmazonQUsageSnapshot>> => {
       try {
-        const statePath = resolveAmazonQUsageStatePath(os.homedir());
+        const envPath = process.env.AMAZON_Q_STATE_PATH;
+        const statePath = envPath ? envPath : resolveAmazonQUsageStatePath(os.homedir());
         const data = fetchAmazonQRateLimits(statePath, AMAZON_Q_MONTHLY_LIMIT);
         return { status: "ok", data, error: null, display: `${data.used}/${data.limit} requests used` };
       } catch (e) {

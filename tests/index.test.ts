@@ -61,4 +61,16 @@ describe("fetchAllRateLimits", () => {
     expect(result.copilot.status).toBe("no-data");
     expect(result.copilot.display).toContain("auth required");
   });
+
+  it("respects AMAZON_Q_STATE_PATH environment variable", async () => {
+    const customPath = "/custom/path/to/amazon-q-usage.json";
+    process.env.AMAZON_Q_STATE_PATH = customPath;
+    
+    const spy = vi.spyOn(amazonQ, "fetchAmazonQRateLimits");
+    
+    await fetchAllRateLimits();
+    
+    expect(spy).toHaveBeenCalledWith(customPath, expect.any(Number));
+    delete process.env.AMAZON_Q_STATE_PATH;
+  });
 });
