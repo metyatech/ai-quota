@@ -34,11 +34,11 @@ Supported agent names: `claude`, `gemini`, `copilot`, `amazon-q`, `codex`
 ### Human-readable output example
 
 ```
-claude:    72% used  (resets in 3h 12m)
-gemini:    45% used  (resets in 18h)
-copilot:   28% used  (resets in 9d)
-amazon-q:  12/50 requests used
-codex:     38% used  (resets in 6h)
+claude:    5h: 8% (resets in 1h 39m), 7d: 22% (resets in 140h 39m)
+gemini:    Pro: 4% (resets in 14h 14m), Flash: 40% (resets in 14h 18m)
+copilot:   72% used  (resets in 9d 11h)
+amazon-q:  0/50 requests used
+codex:     5h: 65% (resets in 3h), Weekly: 21% (resets in 6d)
 ```
 
 ### JSON output example
@@ -49,11 +49,11 @@ ai-quota --json
 
 ```json
 {
-  "claude": { "usedPercent": 72, "resetsAt": "2026-02-19T18:00:00+09:00" },
-  "gemini": { "usedPercent": 45, "resetsAt": "2026-02-20T00:00:00Z" },
-  "copilot": { "usedPercent": 28, "resetsAt": "2026-03-01T00:00:00Z" },
-  "amazon-q": { "used": 12, "limit": 50, "percentRemaining": 76, "resetsAt": "2026-03-01T00:00:00Z" },
-  "codex": { "usedPercent": 38, "resetsAt": "2026-02-19T22:00:00Z" }
+  "claude": { "usedPercent": 8, "resetsAt": "2026-02-19T14:00:00Z", "five_hour": { ... }, "seven_day": { ... } },
+  "gemini": { "usedPercent": 4, "resetsAt": "2026-02-20T02:34:17.000Z", "gemini-3-pro-preview": { ... }, "gemini-3-flash-preview": { ... } },
+  "copilot": { "usedPercent": 72, "resetsAt": "2026-03-01T00:00:00Z" },
+  "amazon-q": { "used": 0, "limit": 50, "percentRemaining": 100, "resetsAt": "2026-03-01T00:00:00Z" },
+  "codex": { "usedPercent": 65, "resetsAt": "2026-02-19T14:50:56Z", "fiveHour": { ... }, "weekly": { ... } }
 }
 ```
 
@@ -63,7 +63,7 @@ ai-quota --json
 |-----------|------------------------------------------------------------------------|
 | Claude    | `~/.claude/.credentials.json`                                          |
 | Gemini    | `~/.gemini/oauth_creds.json`                                           |
-| Copilot   | `GITHUB_TOKEN` env var, or `~/.config/gh/hosts.yml` (gh CLI token)    |
+| Copilot   | `GITHUB_TOKEN` env var, `gh auth token` CLI, or `hosts.yml`            |
 | Amazon Q  | `AMAZON_Q_STATE_PATH` env var (defaults to `~/agent-runner/state/`)   |
 | Codex     | `~/.codex/sessions/` JSONL files, or `~/.codex/auth.json`             |
 
