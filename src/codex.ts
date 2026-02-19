@@ -259,15 +259,14 @@ async function readCodexRateLimitsFromSessions(
         if (!line || !line.startsWith("{")) continue;
 
         try {
-          const obj = JSON.parse(line);
-          const payload = obj.payload;
-          if (!payload || payload.type !== "token_count") continue;
-
-          const rateLimits = payload.info?.rate_limits;
-          if (!rateLimits) continue;
-
-          const result = convertJsonlRateLimits(rateLimits, now);
-          if (result && (result.primary || result.secondary)) {
+                    const obj = JSON.parse(line);
+                    const payload = obj.payload;
+                    if (!payload || payload.type !== "token_count") continue;
+                    
+                    const rateLimits = payload.rate_limits ?? payload.info?.rate_limits;
+                    if (!rateLimits) continue;
+          
+                    const result = convertJsonlRateLimits(rateLimits, now);          if (result && (result.primary || result.secondary)) {
             return result;
           }
         } catch {

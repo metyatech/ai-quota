@@ -178,6 +178,21 @@ describe("fetchCodexRateLimits – JSONL session files", () => {
     expect(result?.primary?.window_minutes).toBe(300);
   });
 
+  it("parses the exact raw JSON line from real logs", async () => {
+    const rawLine = '{"timestamp":"2026-02-19T11:53:54.722Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":257663,"cached_input_tokens":216448,"output_tokens":3280,"reasoning_output_tokens":1938,"total_tokens":260943},"last_token_usage":{"input_tokens":25313,"cached_input_tokens":24960,"output_tokens":265,"reasoning_output_tokens":228,"total_tokens":25578},"model_context_window":258400},"rate_limits":{"limit_id":"codex","limit_name":null,"primary":{"used_percent":65.0,"window_minutes":300,"resets_at":1771505456},"secondary":{"used_percent":21.0,"window_minutes":10080,"resets_at":1772067074},"credits":{"has_credits":false,"unlimited":false,"balance":null},"plan_type":null}}}';
+    const now = new Date();
+    const yyyy = now.getFullYear().toString();
+    const mm = (now.getMonth() + 1).toString().padStart(2, "0");
+    const dd = now.getDate().toString().padStart(2, "0");
+    const dayDir = join(tmpDir, "sessions", yyyy, mm, dd);
+    await mkdir(dayDir, { recursive: true });
+    await writeFile(join(dayDir, "exact.jsonl"), rawLine + "\n");
+
+    const result = await fetchCodexRateLimits({ codexHome: tmpDir });
+    expect(result).not.toBeNull();
+    expect(result?.primary?.used_percent).toBe(65);
+  });
+
   it("skips JSONL lines that are not token_count type", async () => {
     const now = new Date();
     const yyyy = now.getFullYear().toString();

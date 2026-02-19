@@ -43,6 +43,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Refactored Constants:** Moved the default Amazon Q monthly limit to the `amazon-q.ts` module to improve code decoupling and maintainability.
 
+## [0.6.1] - 2026-02-19
+
+### Fixed
+
+- **Final Codex Fix:** Resolved the persistent "no data" issue for Codex by correctly parsing `rate_limits` when it appears as a direct child of the event payload. Added a regression test with exact real-world log samples to prevent recurrence.
+
 ## [0.6.0] - 2026-02-19
 
 ### Changed
