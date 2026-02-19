@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-02-19
+
+### Added
+
+- Support for detailed quota display in the CLI (multiple windows for Claude/Codex, model-specific usage for Gemini).
+
+### Fixed
+
+- Improved Copilot token retrieval by adding support for `gh auth token` command.
+- Enhanced Codex session log parsing robustness for the latest rollout file format.
+
 ## [0.2.1] - 2026-02-19
 
 ### Fixed
