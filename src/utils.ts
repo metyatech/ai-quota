@@ -9,8 +9,8 @@ import path from "node:path";
 /**
  * Formats a date into a human-readable "remaining time" string.
  */
-export function formatResetIn(resetAt: Date): string {
-  const diffMs = resetAt.getTime() - Date.now();
+export function formatResetIn(resetAt: Date, now: Date = new Date()): string {
+  const diffMs = resetAt.getTime() - now.getTime();
   if (diffMs <= 0) return "already reset";
   const totalMinutes = Math.floor(diffMs / 60000);
   const hours = Math.floor(totalMinutes / 60);

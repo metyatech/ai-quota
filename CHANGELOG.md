@@ -43,6 +43,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Refactored Constants:** Moved the default Amazon Q monthly limit to the `amazon-q.ts` module to improve code decoupling and maintainability.
 
+## [0.7.2] - 2026-02-20
+
+### Changed
+
+- **Utility Purity:** Refactored `formatResetIn` to accept an optional reference date, making it pure and easier to test.
+
+### Fixed
+
+- **Test Coverage:** Restored missing Amazon Q test cases and added new tests for the selective fetching API, bringing the total test count to 55.
+
 ## [0.7.1] - 2026-02-20
 
 ### Fixed
