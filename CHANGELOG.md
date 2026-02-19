@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.2] - 2026-02-19
+
+### Changed
+
+- **AI Friendliness:** Enhanced the MCP `get_quota` tool to return results in a formatted Markdown table, making it easier for AI agents to present quota information to users.
+
+### Fixed
+
+- **Robust MCP:** Implemented standard JSON-RPC error handling and standardized response helper functions in the MCP server.
+
 ## [0.5.1] - 2026-02-19
 
 ### Added
