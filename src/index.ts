@@ -36,124 +36,111 @@ export {
 } from "./copilot.js";
 export type { FetchCopilotRateLimitsOptions } from "./copilot.js";
 export {
-  fetchAmazonQRateLimits,
-  recordAmazonQUsage,
-  loadAmazonQUsageState,
-  saveAmazonQUsageState,
-  resolveAmazonQUsageStatePath
-} from "./amazon-q.js";
-export { fetchCodexRateLimits, rateLimitSnapshotToStatus } from "./codex.js";
-export type {
-  CodexStatus,
-  UsageWindow,
-  UsageWindowKey,
-  FetchCodexRateLimitsOptions
-} from "./codex.js";
-
-// MCP
-export { runMcpServer } from "./mcp.js";
-
-// ---------------------------------------------------------------------------
-// High-level Orchestration API
-// ---------------------------------------------------------------------------
-
-const AMAZON_Q_MONTHLY_LIMIT = 50;
-
-/**
- * Fetches quota/usage for all supported agents using default credential discovery.
- *
- * This is the primary entry point for the SDK, providing a unified interface
- * to gather status across all configured AI providers.
- *
- * @param options - Configuration options for the fetch operation
- * @param options.verbose - Enable detailed logging to stderr
- * @param options.timeoutSeconds - Global timeout for network requests (default: 10s)
- * @returns A structured object containing quota information for all agents
- */
-export async function fetchAllRateLimits(options?: {
-  verbose?: boolean;
-  timeoutSeconds?: number;
-}): Promise<AllRateLimits> {
-  const verbose = options?.verbose ?? false;
-  const timeout = options?.timeoutSeconds ?? 10;
-
-  const results = await Promise.allSettled([
-    // Claude
-    (async (): Promise<QuotaResult<ClaudeUsageData>> => {
-      try {
-        const data = await fetchClaudeRateLimits(timeout * 1000);
-        if (!data) return { status: "no-data", data: null, error: null, display: "no data" };
-        const buckets: string[] = [];
-        if (data.five_hour) {
-          const resetIn = formatResetIn(new Date(data.five_hour.resets_at));
-          buckets.push(`5h: ${Math.round(data.five_hour.utilization)}% (resets in ${resetIn})`);
+    fetchAmazonQRateLimits,
+    recordAmazonQUsage,
+    loadAmazonQUsageState,
+    saveAmazonQUsageState,
+    resolveAmazonQUsageStatePath,
+    DEFAULT_AMAZON_Q_MONTHLY_LIMIT
+  } from "./amazon-q.js";
+  export {
+    fetchCodexRateLimits,
+    rateLimitSnapshotToStatus
+  } from "./codex.js";
+  export type {
+    CodexStatus,
+    UsageWindow,
+    UsageWindowKey,
+    FetchCodexRateLimitsOptions
+  } from "./codex.js";
+  
+  // MCP
+  export { runMcpServer } from "./mcp.js";
+  
+  // ---------------------------------------------------------------------------
+  // High-level Orchestration API
+  // ---------------------------------------------------------------------------
+  
+  /**
+   * Fetches quota/usage for all supported agents using default credential discovery.
+   * 
+   * This is the primary entry point for the SDK, providing a unified interface
+   * to gather status across all configured AI providers.
+   * 
+   * @param options - Configuration options for the fetch operation
+   * @param options.verbose - Enable detailed logging to stderr
+   * @param options.timeoutSeconds - Global timeout for network requests (default: 10s)
+   * @returns A structured object containing quota information for all agents
+   */
+  export async function fetchAllRateLimits(options?: {
+    verbose?: boolean;
+    timeoutSeconds?: number;
+  }): Promise<AllRateLimits> {
+    const verbose = options?.verbose ?? false;
+    const timeout = options?.timeoutSeconds ?? 10;
+  
+    const results = await Promise.allSettled([
+      // Claude
+      (async (): Promise<QuotaResult<ClaudeUsageData>> => {
+        try {
+          const data = await fetchClaudeRateLimits(timeout * 1000);
+          if (!data) return { status: "no-data", data: null, error: null, display: "no data" };
+          const buckets: string[] = [];
+          if (data.five_hour) {
+            const resetIn = formatResetIn(new Date(data.five_hour.resets_at));
+            buckets.push(`5h: ${Math.round(data.five_hour.utilization)}% (resets in ${resetIn})`);
+          }
+          if (data.seven_day) {
+            const resetIn = formatResetIn(new Date(data.seven_day.resets_at));
+            buckets.push(`7d: ${Math.round(data.seven_day.utilization)}% (resets in ${resetIn})`);
+          }
+          return { status: "ok", data, error: null, display: buckets.join(", ") || "no data" };
+        } catch (e) {
+          return { status: "error", data: null, error: String(e), display: `error: ${e}` };
         }
-        if (data.seven_day) {
-          const resetIn = formatResetIn(new Date(data.seven_day.resets_at));
-          buckets.push(`7d: ${Math.round(data.seven_day.utilization)}% (resets in ${resetIn})`);
+      })(),
+  
+      // Gemini
+      (async (): Promise<QuotaResult<GeminiUsage>> => {
+        try {
+          const data = await fetchGeminiRateLimits();
+          if (!data) return { status: "no-data", data: null, error: null, display: "no data" };
+          const models: string[] = [];
+          const pro = data["gemini-3-pro-preview"];
+          const flash = data["gemini-3-flash-preview"];
+          if (pro) models.push(`Pro: ${Math.round(pro.usage)}% (resets in ${formatResetIn(pro.resetAt)})`);
+          if (flash) models.push(`Flash: ${Math.round(flash.usage)}% (resets in ${formatResetIn(flash.resetAt)})`);
+          return { status: "ok", data, error: null, display: models.join(", ") || "no data" };
+        } catch (e) {
+          return { status: "error", data: null, error: String(e), display: `error: ${e}` };
         }
-        return { status: "ok", data, error: null, display: buckets.join(", ") || "no data" };
-      } catch (e) {
-        return { status: "error", data: null, error: String(e), display: `error: ${e}` };
-      }
-    })(),
-
-    // Gemini
-    (async (): Promise<QuotaResult<GeminiUsage>> => {
-      try {
-        const data = await fetchGeminiRateLimits();
-        if (!data) return { status: "no-data", data: null, error: null, display: "no data" };
-        const models: string[] = [];
-        const pro = data["gemini-3-pro-preview"];
-        const flash = data["gemini-3-flash-preview"];
-        if (pro)
-          models.push(`Pro: ${Math.round(pro.usage)}% (resets in ${formatResetIn(pro.resetAt)})`);
-        if (flash)
-          models.push(
-            `Flash: ${Math.round(flash.usage)}% (resets in ${formatResetIn(flash.resetAt)})`
-          );
-        return { status: "ok", data, error: null, display: models.join(", ") || "no data" };
-      } catch (e) {
-        return { status: "error", data: null, error: String(e), display: `error: ${e}` };
-      }
-    })(),
-
-    // Copilot
-    (async (): Promise<QuotaResult<CopilotUsage>> => {
-      try {
-        const token = getCopilotToken(verbose);
-        if (!token)
-          return { status: "no-data", data: null, error: null, display: "no data (auth required)" };
-        const data = await fetchCopilotRateLimits({ token, timeoutSeconds: timeout });
-        if (!data) return { status: "no-data", data: null, error: null, display: "no data" };
-        const usedPercent = Math.round(100 - data.percentRemaining);
-        return {
-          status: "ok",
-          data,
-          error: null,
-          display: `${usedPercent}% used (resets in ${formatResetIn(data.resetAt)})`
-        };
-      } catch (e) {
-        return { status: "error", data: null, error: String(e), display: `error: ${e}` };
-      }
-    })(),
-
-    // Amazon Q
-    (async (): Promise<QuotaResult<AmazonQUsageSnapshot>> => {
-      try {
-        const envPath = process.env.AMAZON_Q_STATE_PATH;
-        const statePath = envPath ? envPath : resolveAmazonQUsageStatePath(os.homedir());
-        const data = fetchAmazonQRateLimits(statePath, AMAZON_Q_MONTHLY_LIMIT);
-        return {
-          status: "ok",
-          data,
-          error: null,
-          display: `${data.used}/${data.limit} requests used`
-        };
-      } catch (e) {
-        return { status: "error", data: null, error: String(e), display: `error: ${e}` };
-      }
-    })(),
+      })(),
+  
+      // Copilot
+      (async (): Promise<QuotaResult<CopilotUsage>> => {
+        try {
+          const token = getCopilotToken(verbose);
+          if (!token) return { status: "no-data", data: null, error: null, display: "no data (auth required)" };
+          const data = await fetchCopilotRateLimits({ token, timeoutSeconds: timeout });
+          if (!data) return { status: "no-data", data: null, error: null, display: "no data" };
+          const usedPercent = Math.round(100 - data.percentRemaining);
+          return { status: "ok", data, error: null, display: `${usedPercent}% used (resets in ${formatResetIn(data.resetAt)})` };
+        } catch (e) {
+          return { status: "error", data: null, error: String(e), display: `error: ${e}` };
+        }
+      })(),
+  
+      // Amazon Q
+      (async (): Promise<QuotaResult<AmazonQUsageSnapshot>> => {
+        try {
+          const envPath = process.env.AMAZON_Q_STATE_PATH;
+          const statePath = envPath ? envPath : resolveAmazonQUsageStatePath(os.homedir());
+          const data = fetchAmazonQRateLimits(statePath, DEFAULT_AMAZON_Q_MONTHLY_LIMIT);
+          return { status: "ok", data, error: null, display: `${data.used}/${data.limit} requests used` };
+        } catch (e) {
+          return { status: "error", data: null, error: String(e), display: `error: ${e}` };
+        }
+      })(),
 
     // Codex
     (async (): Promise<QuotaResult<RateLimitSnapshot>> => {

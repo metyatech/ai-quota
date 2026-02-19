@@ -37,6 +37,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Improved type safety in the MCP server implementation by removing `any` casts.
 
+## [0.5.5] - 2026-02-19
+
+### Changed
+
+- **Refactored Constants:** Moved the default Amazon Q monthly limit to the `amazon-q.ts` module to improve code decoupling and maintainability.
+
 ## [0.5.4] - 2026-02-19
 
 ### Fixed

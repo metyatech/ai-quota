@@ -5,6 +5,12 @@ import type { AmazonQUsageSnapshot } from "./types.js";
 export type { AmazonQUsageSnapshot } from "./types.js";
 
 /**
+ * Default monthly request limit for the Amazon Q Developer free tier.
+ * As of February 2026, this is 50 requests per month.
+ */
+export const DEFAULT_AMAZON_Q_MONTHLY_LIMIT = 50;
+
+/**
  * NOTE: Amazon Q Developer (free tier) does not provide a public API for
  * querying usage or quota programmatically (as of February 2026). There is
  * no official AWS SDK method, REST endpoint, or CLI command that returns
