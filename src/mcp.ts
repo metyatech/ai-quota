@@ -102,14 +102,13 @@ export async function handleMcpMessage(request: McpRequest): Promise<McpResponse
           const res = all[sdkKey];
           markdown = `### Quota for ${agent}\n\n| Agent | Status | Usage/Limit |\n| :--- | :--- | :--- |\n| ${agent} | ${res.status} | ${res.display} |`;
         } else {
-          markdown =
-            "### Current AI Agent Quotas\n\n| Agent | Status | Usage/Limit |\n| :--- | :--- | :--- |\n";
-          markdown += Object.entries(all)
-            .map(
-              ([k, v]) =>
-                `| ${k === "amazonQ" ? "amazon-q" : k} | ${(v as any).status} | ${(v as any).display} |`
-            )
-            .join("\n");
+                      markdown = "### Current AI Agent Quotas\n\n| Agent | Status | Usage/Limit |\n| :--- | :--- | :--- |\n";
+                    markdown += (Object.entries(all) as [keyof AllRateLimits, AllRateLimits[keyof AllRateLimits]][])
+                      .map(
+                        ([k, v]) =>
+                          `| ${k === "amazonQ" ? "amazon-q" : k} | ${v.status} | ${v.display} |`
+                      )
+                      .join("\n");
         }
 
         return {
