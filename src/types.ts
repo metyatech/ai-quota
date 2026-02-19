@@ -171,9 +171,21 @@ export type QuotaResult<T> = {
 };
 
 /**
+ * Summary of the overall health status of all quotas.
+ */
+export type GlobalSummary = {
+  /** Overall status: "healthy", "warning", or "critical" */
+  status: "healthy" | "warning" | "critical";
+  /** A human-readable message summarizing the overall state */
+  message: string;
+};
+
+/**
  * Complete set of rate limits for all supported AI agents.
  */
 export type AllRateLimits = {
+  /** Overall summary of the quota health */
+  summary: GlobalSummary;
   claude: QuotaResult<ClaudeUsageData>;
   gemini: QuotaResult<GeminiUsage>;
   copilot: QuotaResult<CopilotUsage>;

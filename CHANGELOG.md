@@ -43,6 +43,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Refactored Constants:** Moved the default Amazon Q monthly limit to the `amazon-q.ts` module to improve code decoupling and maintainability.
 
+## [0.8.0] - 2026-02-20
+
+### Added
+
+- **MCP Resources:** Added support for Model Context Protocol (MCP) resources. AI agents can now subscribe to a live view of quotas via the `quota://current` URI.
+- **Global Quota Summary:** Introduced a new `summary` field in the SDK and MCP output that provides an overall health status (`healthy`, `warning`, or `critical`) based on usage levels across all providers.
+
+### Changed
+
+- **Refactored MCP Implementation:** Better support for standard MCP methods including `initialize`, `resources/list`, `resources/read`, and `tools/call`.
+
 ## [0.7.2] - 2026-02-20
 
 ### Changed

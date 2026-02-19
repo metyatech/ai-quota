@@ -23,7 +23,8 @@ import type {
   AmazonQUsageSnapshot,
   RateLimitSnapshot,
   QuotaResult,
-  AgentStatus
+  AgentStatus,
+  GlobalSummary
 } from "./types.js";
 
 // ---------------------------------------------------------------------------
@@ -43,14 +44,12 @@ export type SupportedAgent = (typeof SUPPORTED_AGENTS)[number];
 /**
  * Maps a SupportedAgent name to its corresponding key in AllRateLimits.
  */
-export function agentToSdkKey(agent: SupportedAgent): keyof AllRateLimits {
-  return agent === "amazon-q" ? "amazonQ" : (agent as keyof AllRateLimits);
+export function agentToSdkKey(agent: SupportedAgent): keyof Omit<AllRateLimits, "summary"> {
+  return agent === "amazon-q" ? "amazonQ" : (agent as keyof Omit<AllRateLimits, "summary">);
 }
 
 // Shared types
 export type * from "./types.js";
-
-// High-level Orchestration API (Implementation is below)
 
 // Utilities
 export { formatResetIn } from "./utils.js";
@@ -186,6 +185,7 @@ export async function fetchAllRateLimits(options?: {
   };
 
   const finalResult: AllRateLimits = {
+    summary: { status: "healthy", message: "All agents are within limits." },
     claude: DEFAULT_SKIPPED_RESULT as unknown as QuotaResult<ClaudeUsageData>,
     gemini: DEFAULT_SKIPPED_RESULT as unknown as QuotaResult<GeminiUsage>,
     copilot: DEFAULT_SKIPPED_RESULT as unknown as QuotaResult<CopilotUsage>,
@@ -198,6 +198,9 @@ export async function fetchAllRateLimits(options?: {
     return { name, result };
   }));
 
+  let maxStress = 0;
+  let criticalCount = 0;
+
   for (const { name, result } of results) {
     const key = agentToSdkKey(name);
     if (key === "claude") finalResult.claude = result;
@@ -205,6 +208,20 @@ export async function fetchAllRateLimits(options?: {
     else if (key === "copilot") finalResult.copilot = result;
     else if (key === "amazonQ") finalResult.amazonQ = result;
     else if (key === "codex") finalResult.codex = result;
+
+    // Calculate overall status
+    if (result.status === "error") criticalCount++;
+    const match = result.display.match(/(\d+)%/);
+    if (match) {
+      const percent = parseInt(match[1], 10);
+      maxStress = Math.max(maxStress, percent);
+    }
+  }
+
+  if (criticalCount > 0) {
+    finalResult.summary = { status: "critical", message: `${criticalCount} agent(s) failed or are at 100% capacity.` };
+  } else if (maxStress >= 80) {
+    finalResult.summary = { status: "warning", message: `Usage is high (up to ${maxStress}%).` };
   }
 
   return finalResult;
