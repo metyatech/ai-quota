@@ -4,7 +4,7 @@
  * Provides a 'get_quota' tool for AI agents to check their own usage limits.
  */
 
-import { fetchAllRateLimits } from "./index.js";
+import { fetchAllRateLimits, SUPPORTED_AGENTS } from "./index.js";
 import type { AllRateLimits } from "./types.js";
 import { getVersion } from "./utils.js";
 
@@ -28,7 +28,7 @@ export interface McpResponse {
 interface McpToolCallParams {
   name: string;
   arguments?: {
-    agent?: "claude" | "gemini" | "copilot" | "amazon-q" | "codex";
+    agent?: string;
   };
 }
 
@@ -48,53 +48,47 @@ export async function handleMcpMessage(request: McpRequest): Promise<McpResponse
           serverInfo: { name: "ai-quota", version: getVersion() }
         }
       };
-    }
-
+    } 
+    
     if (request.method === "tools/list") {
       return {
         jsonrpc: "2.0",
         id: request.id,
         result: {
-          tools: [
-            {
-              name: "get_quota",
-              description:
-                "Get current quota and rate limit status for AI agents. Returns data in a Markdown table.",
-              inputSchema: {
-                type: "object",
-                properties: {
-                  agent: {
-                    type: "string",
-                    enum: ["claude", "gemini", "copilot", "amazon-q", "codex"],
-                    description: "Optional specific agent to check"
-                  }
+          tools: [{
+            name: "get_quota",
+            description: "Get current quota and rate limit status for AI agents. Returns data in a Markdown table.",
+            inputSchema: {
+              type: "object",
+              properties: {
+                agent: { 
+                  type: "string", 
+                  enum: [...SUPPORTED_AGENTS], 
+                  description: "Optional specific agent to check" 
                 }
               }
             }
-          ]
+          }]
         }
       };
-    }
-
+    } 
+    
     if (request.method === "tools/call") {
       const params = request.params as McpToolCallParams;
       if (params.name === "get_quota") {
         const all = await fetchAllRateLimits();
         const agent = params.arguments?.agent;
-
+        
         let markdown: string;
-        if (agent) {
+        if (agent && (SUPPORTED_AGENTS as readonly string[]).includes(agent)) {
           const sdkKey = agent === "amazon-q" ? "amazonQ" : (agent as keyof AllRateLimits);
           const res = all[sdkKey];
           markdown = `### Quota for ${agent}\n\n| Agent | Status | Usage/Limit |\n| :--- | :--- | :--- |\n| ${agent} | ${res.status} | ${res.display} |`;
         } else {
-                      markdown = "### Current AI Agent Quotas\n\n| Agent | Status | Usage/Limit |\n| :--- | :--- | :--- |\n";
-                    markdown += (Object.entries(all) as [keyof AllRateLimits, AllRateLimits[keyof AllRateLimits]][])
-                      .map(
-                        ([k, v]) =>
-                          `| ${k === "amazonQ" ? "amazon-q" : k} | ${v.status} | ${v.display} |`
-                      )
-                      .join("\n");
+          markdown = "### Current AI Agent Quotas\n\n| Agent | Status | Usage/Limit |\n| :--- | :--- | :--- |\n";
+          markdown += (Object.entries(all) as [keyof AllRateLimits, AllRateLimits[keyof AllRateLimits]][])
+            .map(([k, v]) => `| ${k === "amazonQ" ? "amazon-q" : k} | ${v.status} | ${v.display} |`)
+            .join("\n");
         }
 
         return {

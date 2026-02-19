@@ -43,6 +43,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Refactored Constants:** Moved the default Amazon Q monthly limit to the `amazon-q.ts` module to improve code decoupling and maintainability.
 
+## [0.6.0] - 2026-02-19
+
+### Changed
+
+- **Architectural Improvements:** Centralized the list of supported AI agents into a single `SUPPORTED_AGENTS` constant in the SDK core. This ensures the CLI and MCP server are always in sync and makes it easier to add new providers in the future.
+
 ## [0.5.9] - 2026-02-19
 
 ### Fixed

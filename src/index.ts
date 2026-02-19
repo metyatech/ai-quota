@@ -29,6 +29,11 @@ import type {
 // Exports
 // ---------------------------------------------------------------------------
 
+/**
+ * List of AI agent identifiers supported by this SDK.
+ */
+export const SUPPORTED_AGENTS = ["claude", "gemini", "copilot", "amazon-q", "codex"] as const;
+
 // Shared types
 export type * from "./types.js";
 

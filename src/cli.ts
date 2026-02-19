@@ -6,7 +6,7 @@
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { fetchAllRateLimits, runMcpServer } from "./index.js";
+import { fetchAllRateLimits, runMcpServer, SUPPORTED_AGENTS, AllRateLimits } from "./index.js";
 import { formatResetIn, getVersion } from "./utils.js";
 
 function padName(name: string): string {
@@ -43,25 +43,23 @@ async function main(): Promise<void> {
 
   const jsonMode = args.includes("--json");
   const quiet = args.includes("--quiet");
-  const verbose = args.includes("--verbose");
-
-  const requestedAgents = args.filter((a) => !a.startsWith("-"));
-
-  const allResults = await fetchAllRateLimits({ verbose, timeoutSeconds: 10 });
-
-  const agentsToDisplay = (
-    requestedAgents.length > 0
-      ? requestedAgents
-      : ["claude", "gemini", "copilot", "amazon-q", "codex"]
-  ) as string[];
-
-  let anyError = false;
-  const outputJson: Record<string, unknown> = {};
-
-  for (const key of agentsToDisplay) {
-    const sdkKey = key === "amazon-q" ? "amazonQ" : (key as keyof typeof allResults);
-    const res = allResults[sdkKey];
-    if (!res) continue;
+    const verbose = args.includes("--verbose");
+  
+    const requestedAgents = args.filter((a) => !a.startsWith("-"));
+  
+    const allResults = await fetchAllRateLimits({ verbose, timeoutSeconds: 10 });
+  
+    const agentsToDisplay = (
+      requestedAgents.length > 0 ? requestedAgents : [...SUPPORTED_AGENTS]
+    ) as string[];
+  
+    let anyError = false;
+    const outputJson: Record<string, unknown> = {};
+  
+    for (const key of agentsToDisplay) {
+      const sdkKey = key === "amazon-q" ? "amazonQ" : (key as keyof AllRateLimits);
+      const res = (allResults as any)[sdkKey];
+      if (!res) continue;
 
     if (res.status === "error") anyError = true;
 
