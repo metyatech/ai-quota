@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.3] - 2026-02-19
+
+### Added
+
+- **MCP Unit Tests:** Added comprehensive unit tests for the MCP server and orchestration logic.
+
+### Changed
+
+- **Refactored MCP:** Extracted core logic into `handleMcpMessage` for better testability.
+- **Improved MCP Output:** The `get_quota` tool now returns information in a clear Markdown table for better readability by AI agents.
+- **Robust Error Handling:** Standardized JSON-RPC error responses in the MCP server.
+
 ## [0.5.2] - 2026-02-19
 
 ### Changed
