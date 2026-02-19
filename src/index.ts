@@ -206,9 +206,12 @@ export async function fetchAllRateLimits(options?: {
     return { name, result };
   }));
 
+  let maxStress = 0;
+  let criticalCount = 0;
+
   for (const { name, result } of results) {
     const sdkKey = agentToSdkKey(name);
-    // @ts-expect-error - Result mapping is internally consistent but TS can't trace the generic T through the fetchers map
+    // @ts-ignore - Result mapping is internally consistent but TS can't trace the generic T through the fetchers map
     finalResult[sdkKey] = result;
 
     // Calculate overall status

@@ -43,6 +43,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Refactored Constants:** Moved the default Amazon Q monthly limit to the `amazon-q.ts` module to improve code decoupling and maintainability.
 
+## [0.9.0] - 2026-02-20
+
+### Added
+
+- **Usage Recording:** Introduced a new `record` subcommand to the CLI (`ai-quota record amazon-q`), allowing users to manually update usage counters for providers that require local tracking.
+
+### Fixed
+
+- **Internal Logic:** Restored missing variables in the SDK's orchestration logic that were causing runtime errors in certain scenarios.
+
 ## [0.8.2] - 2026-02-20
 
 ### Changed
