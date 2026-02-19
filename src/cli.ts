@@ -18,7 +18,7 @@ import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { fetchClaudeRateLimits } from "./claude.js";
 import { fetchGeminiRateLimits } from "./gemini.js";
-import { fetchCopilotRateLimits } from "./copilot.js";
+import { fetchCopilotRateLimits, getCopilotToken } from "./copilot.js";
 import { fetchAmazonQRateLimits, resolveAmazonQUsageStatePath } from "./amazon-q.js";
 import { fetchCodexRateLimits, rateLimitSnapshotToStatus } from "./codex.js";
 
@@ -42,7 +42,7 @@ function getVersion(): string {
 // Time formatting helpers
 // ---------------------------------------------------------------------------
 
-function formatResetIn(resetAt: Date): string {
+export function formatResetIn(resetAt: Date): string {
   const diffMs = resetAt.getTime() - Date.now();
   if (diffMs <= 0) return "already reset";
   const totalMinutes = Math.floor(diffMs / 60000);
@@ -61,51 +61,6 @@ type AgentResult =
   | { status: "ok"; display: string; json: Record<string, unknown> }
   | { status: "no-data"; display: string; json: Record<string, unknown> }
   | { status: "error"; display: string; json: Record<string, unknown> };
-
-// ---------------------------------------------------------------------------
-// Copilot: resolve token from env or gh CLI hosts.yml or 'gh auth token'
-// ---------------------------------------------------------------------------
-
-function getCopilotToken(verbose: boolean): string | null {
-  if (process.env.GITHUB_TOKEN) {
-    if (verbose) process.stderr.write("[verbose] copilot: using token from GITHUB_TOKEN env var\n");
-    return process.env.GITHUB_TOKEN;
-  }
-  const candidates = [
-    path.join(os.homedir(), ".config", "gh", "hosts.yml"),
-    path.join(os.homedir(), "AppData", "Roaming", "GitHub CLI", "hosts.yml")
-  ];
-  for (const p of candidates) {
-    try {
-      if (!fs.existsSync(p)) continue;
-      if (verbose) process.stderr.write(`[verbose] copilot: checking ${p}\n`);
-      const content = fs.readFileSync(p, "utf8");
-      // Simple line-by-line search for oauth_token under github.com
-      const match = content.match(/oauth_token:\s*(\S+)/);
-      if (match?.[1]) {
-        if (verbose) process.stderr.write(`[verbose] copilot: found token in ${p}\n`);
-        return match[1];
-      }
-    } catch {
-      // ignore
-    }
-  }
-
-  // Final fallback: try 'gh auth token'
-  try {
-    if (verbose) process.stderr.write("[verbose] copilot: trying 'gh auth token --hostname github.com'\n");
-    const { execSync } = createRequire(import.meta.url)("node:child_process");
-    const token = execSync("gh auth token --hostname github.com", { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
-    if (token) {
-      if (verbose) process.stderr.write("[verbose] copilot: found token via gh CLI\n");
-      return token;
-    }
-  } catch {
-    // ignore
-  }
-
-  return null;
-}
 
 // ---------------------------------------------------------------------------
 // Per-agent fetchers

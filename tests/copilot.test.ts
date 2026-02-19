@@ -1,8 +1,42 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi, afterEach } from "vitest";
 import {
   parseCopilotUserInfo,
-  parseCopilotQuotaHeader
+  parseCopilotQuotaHeader,
+  getCopilotToken
 } from "../src/copilot.js";
+
+describe("getCopilotToken", () => {
+  const originalEnv = process.env;
+
+  afterEach(() => {
+    process.env = { ...originalEnv };
+    vi.restoreAllMocks();
+  });
+
+  it("returns token from GITHUB_TOKEN environment variable", () => {
+    process.env.GITHUB_TOKEN = "test-token";
+    expect(getCopilotToken()).toBe("test-token");
+  });
+
+  it("returns null when no token source is available", () => {
+    delete process.env.GITHUB_TOKEN;
+    // Mock fs.existsSync to always return false
+    vi.mock("node:fs", async () => {
+      const actual = await vi.importActual("node:fs") as any;
+      return {
+        ...actual,
+        default: { ...actual.default, existsSync: () => false },
+        existsSync: () => false
+      };
+    });
+    // Mock child_process.execSync to throw
+    vi.mock("node:child_process", () => ({
+      execSync: () => { throw new Error("not found"); }
+    }));
+
+    expect(getCopilotToken()).toBeNull();
+  });
+});
 
 describe("parseCopilotUserInfo", () => {
   it("parses premium interactions snapshot", () => {

@@ -1,6 +1,57 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { execSync } from "node:child_process";
 import type { CopilotUsage } from "./types.js";
 
 export type { CopilotUsage } from "./types.js";
+
+/**
+ * Resolves a GitHub Copilot token from environment variables,
+ * local GitHub CLI configuration files, or the 'gh' CLI command.
+ */
+export function getCopilotToken(verbose: boolean = false): string | null {
+  if (process.env.GITHUB_TOKEN) {
+    if (verbose) process.stderr.write("[verbose] copilot: using token from GITHUB_TOKEN env var\n");
+    return process.env.GITHUB_TOKEN;
+  }
+  const candidates = [
+    path.join(os.homedir(), ".config", "gh", "hosts.yml"),
+    path.join(os.homedir(), "AppData", "Roaming", "GitHub CLI", "hosts.yml")
+  ];
+  for (const p of candidates) {
+    try {
+      if (!fs.existsSync(p)) continue;
+      if (verbose) process.stderr.write(`[verbose] copilot: checking ${p}\n`);
+      const content = fs.readFileSync(p, "utf8");
+      // Simple line-by-line search for oauth_token under github.com
+      const match = content.match(/oauth_token:\s*(\S+)/);
+      if (match?.[1]) {
+        if (verbose) process.stderr.write(`[verbose] copilot: found token in ${p}\n`);
+        return match[1];
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  // Final fallback: try 'gh auth token'
+  try {
+    if (verbose) process.stderr.write("[verbose] copilot: trying 'gh auth token --hostname github.com'\n");
+    const token = execSync("gh auth token --hostname github.com", {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"]
+    }).trim();
+    if (token) {
+      if (verbose) process.stderr.write("[verbose] copilot: found token via gh CLI\n");
+      return token;
+    }
+  } catch {
+    // ignore
+  }
+
+  return null;
+}
 
 const DEFAULT_API_BASE_URL = "https://api.github.com";
 const DEFAULT_API_VERSION = "2025-05-01";
