@@ -439,7 +439,9 @@ Source: github:metyatech/agent-rules@HEAD/rules/global/release-and-publication.m
 - Before publishing, run required prep commands (e.g., npm install, npm test, npm pack --dry-run) and only proceed when ready.
 - If authentication fails during publish, ask the user to complete the publish step.
 - Run dependency security checks before release, address critical issues, and report results.
-- After publishing, update any locally installed copy to the latest release.
+- After publishing, update any locally installed copy to the newly published release and verify the resolved version.
+  - Include evidence (exact commands + observed version) in the final report.
+  - For npm CLIs: check `npm ls -g <pkg> --depth=0`, update via `npm i -g <pkg>@latest` (or the published dist-tag), then verify with `<pkg> --version` (or `npx <pkg>@latest --version`).
 
 ## Published artifact requirements
 
