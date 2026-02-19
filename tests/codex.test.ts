@@ -130,7 +130,11 @@ describe("fetchCodexRateLimits – JSONL session files", () => {
         info: {
           rate_limits: {
             primary: { used_percent: 35, window_duration_minutes: 300, resets_in_seconds: 1800 },
-            secondary: { used_percent: 15, window_duration_minutes: 10080, resets_in_seconds: 86400 }
+            secondary: {
+              used_percent: 15,
+              window_duration_minutes: 10080,
+              resets_in_seconds: 86400
+            }
           }
         }
       }
@@ -183,10 +187,7 @@ describe("fetchCodexRateLimits – JSONL session files", () => {
     await mkdir(dayDir, { recursive: true });
 
     const otherEntry = { payload: { type: "other_event", info: {} } };
-    await writeFile(
-      join(dayDir, "session-001.jsonl"),
-      JSON.stringify(otherEntry) + "\n"
-    );
+    await writeFile(join(dayDir, "session-001.jsonl"), JSON.stringify(otherEntry) + "\n");
 
     const result = await fetchCodexRateLimits({ codexHome: tmpDir });
     // No token_count entries → falls back to API (which also fails) → null

@@ -42,10 +42,7 @@ export {
   saveAmazonQUsageState,
   resolveAmazonQUsageStatePath
 } from "./amazon-q.js";
-export {
-  fetchCodexRateLimits,
-  rateLimitSnapshotToStatus
-} from "./codex.js";
+export { fetchCodexRateLimits, rateLimitSnapshotToStatus } from "./codex.js";
 export type {
   CodexStatus,
   UsageWindow,
@@ -64,10 +61,10 @@ const AMAZON_Q_MONTHLY_LIMIT = 50;
 
 /**
  * Fetches quota/usage for all supported agents using default credential discovery.
- * 
+ *
  * This is the primary entry point for the SDK, providing a unified interface
  * to gather status across all configured AI providers.
- * 
+ *
  * @param options - Configuration options for the fetch operation
  * @param options.verbose - Enable detailed logging to stderr
  * @param options.timeoutSeconds - Global timeout for network requests (default: 10s)
@@ -109,8 +106,12 @@ export async function fetchAllRateLimits(options?: {
         const models: string[] = [];
         const pro = data["gemini-3-pro-preview"];
         const flash = data["gemini-3-flash-preview"];
-        if (pro) models.push(`Pro: ${Math.round(pro.usage)}% (resets in ${formatResetIn(pro.resetAt)})`);
-        if (flash) models.push(`Flash: ${Math.round(flash.usage)}% (resets in ${formatResetIn(flash.resetAt)})`);
+        if (pro)
+          models.push(`Pro: ${Math.round(pro.usage)}% (resets in ${formatResetIn(pro.resetAt)})`);
+        if (flash)
+          models.push(
+            `Flash: ${Math.round(flash.usage)}% (resets in ${formatResetIn(flash.resetAt)})`
+          );
         return { status: "ok", data, error: null, display: models.join(", ") || "no data" };
       } catch (e) {
         return { status: "error", data: null, error: String(e), display: `error: ${e}` };
@@ -121,11 +122,17 @@ export async function fetchAllRateLimits(options?: {
     (async (): Promise<QuotaResult<CopilotUsage>> => {
       try {
         const token = getCopilotToken(verbose);
-        if (!token) return { status: "no-data", data: null, error: null, display: "no data (auth required)" };
+        if (!token)
+          return { status: "no-data", data: null, error: null, display: "no data (auth required)" };
         const data = await fetchCopilotRateLimits({ token, timeoutSeconds: timeout });
         if (!data) return { status: "no-data", data: null, error: null, display: "no data" };
         const usedPercent = Math.round(100 - data.percentRemaining);
-        return { status: "ok", data, error: null, display: `${usedPercent}% used (resets in ${formatResetIn(data.resetAt)})` };
+        return {
+          status: "ok",
+          data,
+          error: null,
+          display: `${usedPercent}% used (resets in ${formatResetIn(data.resetAt)})`
+        };
       } catch (e) {
         return { status: "error", data: null, error: String(e), display: `error: ${e}` };
       }
@@ -137,7 +144,12 @@ export async function fetchAllRateLimits(options?: {
         const envPath = process.env.AMAZON_Q_STATE_PATH;
         const statePath = envPath ? envPath : resolveAmazonQUsageStatePath(os.homedir());
         const data = fetchAmazonQRateLimits(statePath, AMAZON_Q_MONTHLY_LIMIT);
-        return { status: "ok", data, error: null, display: `${data.used}/${data.limit} requests used` };
+        return {
+          status: "ok",
+          data,
+          error: null,
+          display: `${data.used}/${data.limit} requests used`
+        };
       } catch (e) {
         return { status: "error", data: null, error: String(e), display: `error: ${e}` };
       }
@@ -149,8 +161,14 @@ export async function fetchAllRateLimits(options?: {
         const data = await fetchCodexRateLimits({ timeoutSeconds: timeout });
         if (!data) return { status: "no-data", data: null, error: null, display: "no data" };
         const status = rateLimitSnapshotToStatus(data);
-        if (!status || status.windows.length === 0) return { status: "no-data", data, error: null, display: "no data" };
-        const disp = status.windows.map(w => `${w.label}: ${Math.round(100 - w.percentLeft)}% (resets in ${formatResetIn(w.resetAt)})`).join(", ");
+        if (!status || status.windows.length === 0)
+          return { status: "no-data", data, error: null, display: "no data" };
+        const disp = status.windows
+          .map(
+            (w) =>
+              `${w.label}: ${Math.round(100 - w.percentLeft)}% (resets in ${formatResetIn(w.resetAt)})`
+          )
+          .join(", ");
         return { status: "ok", data, error: null, display: disp };
       } catch (e) {
         return { status: "error", data: null, error: String(e), display: `error: ${e}` };
@@ -158,8 +176,10 @@ export async function fetchAllRateLimits(options?: {
     })()
   ]);
 
-  const [claude, gemini, copilot, amazonQ, codex] = results.map(r => 
-    r.status === "fulfilled" ? r.value : { status: "error" as const, data: null, error: "Task failed", display: "error" }
+  const [claude, gemini, copilot, amazonQ, codex] = results.map((r) =>
+    r.status === "fulfilled"
+      ? r.value
+      : { status: "error" as const, data: null, error: "Task failed", display: "error" }
   );
 
   return {

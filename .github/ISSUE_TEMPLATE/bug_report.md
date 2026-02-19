@@ -1,9 +1,9 @@
 ---
 name: Bug report
 about: Report a bug in @metyatech/ai-quota
-title: ''
+title: ""
 labels: bug
-assignees: ''
+assignees: ""
 ---
 
 **Describe the bug**
@@ -16,6 +16,7 @@ Steps to reproduce the behavior.
 A clear and concise description of what you expected to happen.
 
 **Environment**
+
 - Node.js version:
 - Package version:
 - OS:

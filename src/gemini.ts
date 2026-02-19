@@ -85,7 +85,15 @@ function tryReadGeminiCliOauthClientInfoFromWellKnownPaths(): GeminiOauthClientI
           "code_assist",
           "oauth2.js"
         ),
-        path.join(npmGlobal, "@google", "gemini-cli-core", "dist", "src", "code_assist", "oauth2.js")
+        path.join(
+          npmGlobal,
+          "@google",
+          "gemini-cli-core",
+          "dist",
+          "src",
+          "code_assist",
+          "oauth2.js"
+        )
       );
     }
   }
@@ -159,10 +167,7 @@ async function getCredentials(): Promise<{ accessToken: string }> {
   let accessToken = creds.access_token;
   const now = Date.now();
   // Buffer of 5 minutes
-  if (
-    !accessToken ||
-    (typeof creds.expiry_date === "number" && creds.expiry_date < now + 300000)
-  ) {
+  if (!accessToken || (typeof creds.expiry_date === "number" && creds.expiry_date < now + 300000)) {
     if (creds.refresh_token) {
       const discovered = getGeminiOauthClientInfo();
       const clientId =
@@ -291,8 +296,9 @@ export async function fetchGeminiRateLimits(): Promise<GeminiUsage | null> {
           usage[modelId as keyof GeminiUsage] = {
             limit,
             usage: used,
-            resetAt:
-              bucket.resetTime ? new Date(bucket.resetTime as string) : new Date(Date.now() + 3600000)
+            resetAt: bucket.resetTime
+              ? new Date(bucket.resetTime as string)
+              : new Date(Date.now() + 3600000)
           };
         }
       }

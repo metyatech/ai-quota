@@ -70,7 +70,8 @@ describe("fetchGeminiRateLimits", () => {
 
     vi.stubGlobal(
       "fetch",
-      vi.fn()
+      vi
+        .fn()
         .mockResolvedValueOnce({
           ok: true,
           text: async () => "",

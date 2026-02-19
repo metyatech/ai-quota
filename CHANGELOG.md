@@ -37,6 +37,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Improved type safety in the MCP server implementation by removing `any` casts.
 
+## [0.5.4] - 2026-02-19
+
+### Fixed
+
+- **Metadata Sync:** Dynamically resolve the MCP server version from `package.json` to ensure consistency.
+- **Code Style:** Unified code formatting across the entire project using Prettier.
+- **Scripts:** Restored missing `format` scripts in `package.json`.
+
 ## [0.5.0] - 2026-02-19
 
 ### Added

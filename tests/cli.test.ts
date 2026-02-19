@@ -10,7 +10,7 @@ describe("formatResetIn", () => {
 
   it("formats hours and minutes correctly", () => {
     const now = Date.now();
-    const resetAt = new Date(now + (2 * 3600000) + (15 * 60000)); // 2h 15m later
+    const resetAt = new Date(now + 2 * 3600000 + 15 * 60000); // 2h 15m later
     expect(formatResetIn(resetAt)).toBe("2h 15m");
   });
 

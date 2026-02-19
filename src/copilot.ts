@@ -37,7 +37,8 @@ export function getCopilotToken(verbose: boolean = false): string | null {
 
   // Final fallback: try 'gh auth token'
   try {
-    if (verbose) process.stderr.write("[verbose] copilot: trying 'gh auth token --hostname github.com'\n");
+    if (verbose)
+      process.stderr.write("[verbose] copilot: trying 'gh auth token --hostname github.com'\n");
     const token = execSync("gh auth token --hostname github.com", {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"]

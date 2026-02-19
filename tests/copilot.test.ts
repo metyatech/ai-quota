@@ -1,9 +1,5 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import {
-  parseCopilotUserInfo,
-  parseCopilotQuotaHeader,
-  getCopilotToken
-} from "../src/copilot.js";
+import { parseCopilotUserInfo, parseCopilotQuotaHeader, getCopilotToken } from "../src/copilot.js";
 
 describe("getCopilotToken", () => {
   const originalEnv = process.env;
@@ -22,7 +18,7 @@ describe("getCopilotToken", () => {
     delete process.env.GITHUB_TOKEN;
     // Mock fs.existsSync to always return false
     vi.mock("node:fs", async () => {
-      const actual = await vi.importActual("node:fs") as any;
+      const actual = (await vi.importActual("node:fs")) as any;
       return {
         ...actual,
         default: { ...actual.default, existsSync: () => false },
@@ -31,7 +27,9 @@ describe("getCopilotToken", () => {
     });
     // Mock child_process.execSync to throw
     vi.mock("node:child_process", () => ({
-      execSync: () => { throw new Error("not found"); }
+      execSync: () => {
+        throw new Error("not found");
+      }
     }));
 
     expect(getCopilotToken()).toBeNull();

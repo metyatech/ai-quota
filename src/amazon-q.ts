@@ -139,7 +139,9 @@ export function fetchAmazonQRateLimits(
   const state = loadAmazonQUsageState(statePath, now);
   const used = Math.max(0, state.used);
   const percentRemaining =
-    monthlyLimit <= 0 ? 0 : Math.min(100, Math.max(0, ((monthlyLimit - used) / monthlyLimit) * 100));
+    monthlyLimit <= 0
+      ? 0
+      : Math.min(100, Math.max(0, ((monthlyLimit - used) / monthlyLimit) * 100));
 
   return {
     used,

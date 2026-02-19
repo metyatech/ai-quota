@@ -57,13 +57,15 @@ async function main(): Promise<void> {
   const quiet = args.includes("--quiet");
   const verbose = args.includes("--verbose");
 
-  const requestedAgents = args.filter(a => !a.startsWith("-"));
-  
+  const requestedAgents = args.filter((a) => !a.startsWith("-"));
+
   const allResults = await fetchAllRateLimits({ verbose, timeoutSeconds: 10 });
-  
-  const agentsToDisplay = (requestedAgents.length > 0
-    ? requestedAgents
-    : ["claude", "gemini", "copilot", "amazon-q", "codex"]) as string[];
+
+  const agentsToDisplay = (
+    requestedAgents.length > 0
+      ? requestedAgents
+      : ["claude", "gemini", "copilot", "amazon-q", "codex"]
+  ) as string[];
 
   let anyError = false;
   const outputJson: Record<string, unknown> = {};
@@ -89,7 +91,7 @@ async function main(): Promise<void> {
   if (anyError) process.exitCode = 1;
 }
 
-main().catch(err => {
+main().catch((err) => {
   process.stderr.write(`ai-quota: fatal error: ${err}\n`);
   process.exitCode = 1;
 });

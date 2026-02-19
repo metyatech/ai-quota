@@ -55,6 +55,7 @@ This exposes the `get_quota` tool to Claude, which it can use to stay aware of i
 limits across different models and providers.
 
 **Tool: `get_quota`**
+
 - `agent` (optional): Specific agent to check (`claude`, `gemini`, etc.). If omitted, returns quota for all agents in a Markdown table.
 
 ### Human-readable output example
@@ -85,13 +86,13 @@ ai-quota --json
 
 ### Credential lookup
 
-| Agent     | Source                                                                 |
-|-----------|------------------------------------------------------------------------|
-| Claude    | `~/.claude/.credentials.json`                                          |
-| Gemini    | `~/.gemini/oauth_creds.json`                                           |
-| Copilot   | `GITHUB_TOKEN` env var, `gh auth token` CLI, or `hosts.yml`            |
-| Amazon Q  | `AMAZON_Q_STATE_PATH` env var (defaults to `~/agent-runner/state/`)   |
-| Codex     | `~/.codex/sessions/` JSONL files, or `~/.codex/auth.json`             |
+| Agent    | Source                                                              |
+| -------- | ------------------------------------------------------------------- |
+| Claude   | `~/.claude/.credentials.json`                                       |
+| Gemini   | `~/.gemini/oauth_creds.json`                                        |
+| Copilot  | `GITHUB_TOKEN` env var, `gh auth token` CLI, or `hosts.yml`         |
+| Amazon Q | `AMAZON_Q_STATE_PATH` env var (defaults to `~/agent-runner/state/`) |
+| Codex    | `~/.codex/sessions/` JSONL files, or `~/.codex/auth.json`           |
 
 Exit code is `0` on success. Exit code `1` if any agent fetch fails.
 
@@ -111,13 +112,13 @@ console.log("Copilot status:", all.copilot.status); // "ok", "no-data", or "erro
 
 ## Supported agents
 
-| Agent     | Source                                      | API type              |
-|-----------|---------------------------------------------|-----------------------|
-| Claude    | `~/.claude/.credentials.json`               | REST (Anthropic OAuth)|
-| Gemini    | `~/.gemini/oauth_creds.json`                | REST (Google OAuth)   |
-| Copilot   | GitHub token (caller-provided)              | REST (GitHub API)     |
-| Amazon Q  | Local JSON counter file                     | Local state (see note)|
-| Codex     | JSONL session files / ChatGPT backend API   | Local files + REST    |
+| Agent    | Source                                    | API type               |
+| -------- | ----------------------------------------- | ---------------------- |
+| Claude   | `~/.claude/.credentials.json`             | REST (Anthropic OAuth) |
+| Gemini   | `~/.gemini/oauth_creds.json`              | REST (Google OAuth)    |
+| Copilot  | GitHub token (caller-provided)            | REST (GitHub API)      |
+| Amazon Q | Local JSON counter file                   | Local state (see note) |
+| Codex    | JSONL session files / ChatGPT backend API | Local files + REST     |
 
 > **Amazon Q limitation:** Amazon Q Developer (free tier) does not provide a public API for
 > querying usage or quota programmatically as of February 2026. There is no official AWS SDK
@@ -180,12 +181,12 @@ if (usage) {
 
 Options:
 
-| Option           | Type     | Default                    | Description                              |
-|------------------|----------|----------------------------|------------------------------------------|
-| `token`          | `string` | required                   | GitHub personal access token             |
-| `timeoutSeconds` | `number` | `20`                       | Request timeout in seconds               |
-| `apiBaseUrl`     | `string` | `https://api.github.com`   | Override GitHub API base URL             |
-| `apiVersion`     | `string` | `2025-05-01`               | GitHub API version header                |
+| Option           | Type     | Default                  | Description                  |
+| ---------------- | -------- | ------------------------ | ---------------------------- |
+| `token`          | `string` | required                 | GitHub personal access token |
+| `timeoutSeconds` | `number` | `20`                     | Request timeout in seconds   |
+| `apiBaseUrl`     | `string` | `https://api.github.com` | Override GitHub API base URL |
+| `apiVersion`     | `string` | `2025-05-01`             | GitHub API version header    |
 
 ### Amazon Q
 
@@ -222,11 +223,11 @@ if (snapshot) {
 
 Options for `fetchCodexRateLimits`:
 
-| Option           | Type       | Default        | Description                              |
-|------------------|------------|----------------|------------------------------------------|
-| `codexHome`      | `string`   | `~/.codex`     | Path to the Codex home directory         |
-| `timeoutSeconds` | `number`   | `20`           | HTTP API fallback timeout in seconds     |
-| `timingSink`     | `function` | none           | Callback for per-phase timing (ms)       |
+| Option           | Type       | Default    | Description                          |
+| ---------------- | ---------- | ---------- | ------------------------------------ |
+| `codexHome`      | `string`   | `~/.codex` | Path to the Codex home directory     |
+| `timeoutSeconds` | `number`   | `20`       | HTTP API fallback timeout in seconds |
+| `timingSink`     | `function` | none       | Callback for per-phase timing (ms)   |
 
 ## Dev commands
 
@@ -241,10 +242,10 @@ npm run verify    # lint + test + build (full CI suite)
 
 ## Environment variables
 
-| Variable                              | Used by | Purpose                                         |
-|---------------------------------------|---------|-------------------------------------------------|
-| `AGENT_RUNNER_GEMINI_OAUTH_CLIENT_ID` | Gemini  | Override OAuth client ID when Gemini CLI absent |
-| `AGENT_RUNNER_GEMINI_OAUTH_CLIENT_SECRET` | Gemini | Override OAuth client secret                |
+| Variable                                  | Used by | Purpose                                         |
+| ----------------------------------------- | ------- | ----------------------------------------------- |
+| `AGENT_RUNNER_GEMINI_OAUTH_CLIENT_ID`     | Gemini  | Override OAuth client ID when Gemini CLI absent |
+| `AGENT_RUNNER_GEMINI_OAUTH_CLIENT_SECRET` | Gemini  | Override OAuth client secret                    |
 
 ## SemVer policy
 

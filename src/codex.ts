@@ -192,7 +192,12 @@ function convertJsonlRateLimits(entry: JsonlRateLimitEntry, now: Date): RateLimi
     return {
       used_percent: used,
       window_minutes: w.window_minutes ?? w.window_duration_minutes ?? w.windowDurationMins ?? null,
-      resets_at: w.resets_at ?? w.resetsAt ?? (typeof w.resets_in_seconds === "number" ? Math.floor(now.getTime() / 1000) + w.resets_in_seconds : null)
+      resets_at:
+        w.resets_at ??
+        w.resetsAt ??
+        (typeof w.resets_in_seconds === "number"
+          ? Math.floor(now.getTime() / 1000) + w.resets_in_seconds
+          : null)
     };
   };
 
@@ -252,12 +257,12 @@ async function readCodexRateLimitsFromSessions(
       for (let i = lines.length - 1; i >= 0; i--) {
         const line = lines[i].trim();
         if (!line || !line.startsWith("{")) continue;
-        
+
         try {
           const obj = JSON.parse(line);
           const payload = obj.payload;
           if (!payload || payload.type !== "token_count") continue;
-          
+
           const rateLimits = payload.info?.rate_limits;
           if (!rateLimits) continue;
 
@@ -402,11 +407,7 @@ export async function fetchCodexRateLimits(
     return sessionResult;
   }
 
-  const apiResult = await fetchCodexRateLimitsFromApi(
-    codexHome,
-    timeoutSeconds * 1000,
-    timingSink
-  );
+  const apiResult = await fetchCodexRateLimitsFromApi(codexHome, timeoutSeconds * 1000, timingSink);
   if (timingSink) {
     timingSink("total", Date.now() - totalStart);
   }

@@ -128,10 +128,7 @@ describe("fetchClaudeRateLimits", () => {
       })
     );
 
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValueOnce({ ok: false, status: 401 })
-    );
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce({ ok: false, status: 401 }));
 
     const result = await fetchClaudeRateLimits();
     expect(result).toBeNull();

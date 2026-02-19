@@ -41,7 +41,9 @@ function readClaudeCredentials(): { accessToken: string; expiresAt: number } | n
  * Returns null when credentials are unavailable, expired, or the request fails.
  * Credentials are read from `~/.claude/.credentials.json` (Claude desktop app format).
  */
-export async function fetchClaudeRateLimits(timeoutMs: number = 5000): Promise<ClaudeUsageData | null> {
+export async function fetchClaudeRateLimits(
+  timeoutMs: number = 5000
+): Promise<ClaudeUsageData | null> {
   try {
     const creds = readClaudeCredentials();
     if (!creds) return null;
