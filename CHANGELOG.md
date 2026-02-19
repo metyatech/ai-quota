@@ -43,6 +43,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Refactored Constants:** Moved the default Amazon Q monthly limit to the `amazon-q.ts` module to improve code decoupling and maintainability.
 
+## [0.5.9] - 2026-02-19
+
+### Fixed
+
+- **Build Robustness:** Improved the shebang injection script with proper error handling and non-zero exit codes to ensure build integrity.
+
 ## [0.5.8] - 2026-02-19
 
 ### Changed
