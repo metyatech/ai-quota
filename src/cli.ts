@@ -6,7 +6,14 @@
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { fetchAllRateLimits, runMcpServer, SUPPORTED_AGENTS, AllRateLimits, SupportedAgent } from "./index.js";
+import {
+  fetchAllRateLimits,
+  runMcpServer,
+  SUPPORTED_AGENTS,
+  AllRateLimits,
+  SupportedAgent,
+  agentToSdkKey
+} from "./index.js";
 import { formatResetIn, getVersion } from "./utils.js";
 
 function padName(name: string): string {
@@ -43,33 +50,34 @@ async function main(): Promise<void> {
 
   const jsonMode = args.includes("--json");
   const quiet = args.includes("--quiet");
-    const verbose = args.includes("--verbose");
-  
-      const requestedAgents = args.filter((a) => !a.startsWith("-")) as SupportedAgent[];
-    
-      const allResults = await fetchAllRateLimits({
-        agents: requestedAgents.length > 0 ? requestedAgents : undefined,
-        verbose,
-        timeoutSeconds: 10
-      });
-    
-      const agentsToDisplay = (
-        requestedAgents.length > 0 ? requestedAgents : [...SUPPORTED_AGENTS]
-      ) as string[];  
-    let anyError = false;
-    const outputJson: Record<string, unknown> = {};
-  
-    for (const key of agentsToDisplay) {
-      const sdkKey = key === "amazon-q" ? "amazonQ" : (key as keyof AllRateLimits);
-      const res = (allResults as any)[sdkKey];
-      if (!res) continue;
+  const verbose = args.includes("--verbose");
+
+  const requestedAgents = args.filter((a) => !a.startsWith("-")) as SupportedAgent[];
+
+  const allResults = await fetchAllRateLimits({
+    agents: requestedAgents.length > 0 ? requestedAgents : undefined,
+    verbose,
+    timeoutSeconds: 10
+  });
+
+  const agentsToDisplay = (
+    requestedAgents.length > 0 ? requestedAgents : [...SUPPORTED_AGENTS]
+  ) as SupportedAgent[];
+
+  let anyError = false;
+  const outputJson: Record<string, unknown> = {};
+
+  for (const agent of agentsToDisplay) {
+    const sdkKey = agentToSdkKey(agent);
+    const res = allResults[sdkKey];
+    if (!res) continue;
 
     if (res.status === "error") anyError = true;
 
     if (jsonMode) {
-      outputJson[key] = res.data || { error: res.error };
+      outputJson[agent] = res.data || { error: res.error };
     } else if (!quiet) {
-      process.stdout.write(`${padName(key)} ${res.display}\n`);
+      process.stdout.write(`${padName(agent)} ${res.display}\n`);
     }
   }
 

@@ -4,7 +4,7 @@
  * Provides a 'get_quota' tool for AI agents to check their own usage limits.
  */
 
-import { fetchAllRateLimits, SUPPORTED_AGENTS } from "./index.js";
+import { fetchAllRateLimits, SUPPORTED_AGENTS, SupportedAgent, agentToSdkKey } from "./index.js";
 import type { AllRateLimits } from "./types.js";
 import { getVersion } from "./utils.js";
 
@@ -73,24 +73,28 @@ export async function handleMcpMessage(request: McpRequest): Promise<McpResponse
       };
     } 
     
-            if (request.method === "tools/call") {
-          const params = request.params as McpToolCallParams;
-          if (params.name === "get_quota") {
-            const agent = params.arguments?.agent;
-            const all = await fetchAllRateLimits({
-              agents: agent ? [agent as any] : undefined
-            });
-            
-            let markdown: string;
-            if (agent) {
-              const sdkKey = agent === "amazon-q" ? "amazonQ" : (agent as keyof AllRateLimits);
-              const res = all[sdkKey];
-              markdown = `### Quota for ${agent}\n\n| Agent | Status | Usage/Limit |\n| :--- | :--- | :--- |\n| ${agent} | ${res.status} | ${res.display} |`;
-            } else {          markdown = "### Current AI Agent Quotas\n\n| Agent | Status | Usage/Limit |\n| :--- | :--- | :--- |\n";
-          markdown += (Object.entries(all) as [keyof AllRateLimits, AllRateLimits[keyof AllRateLimits]][])
-            .map(([k, v]) => `| ${k === "amazonQ" ? "amazon-q" : k} | ${v.status} | ${v.display} |`)
-            .join("\n");
-        }
+                    if (request.method === "tools/call") {
+                  const params = request.params as McpToolCallParams;
+                  if (params.name === "get_quota") {
+                    const agent = params.arguments?.agent as SupportedAgent | undefined;
+                    const all = await fetchAllRateLimits({
+                      agents: agent ? [agent] : undefined
+                    });
+                    
+                    let markdown: string;
+                    if (agent) {
+                      const sdkKey = agentToSdkKey(agent);
+                      const res = all[sdkKey];
+                      markdown = `### Quota for ${agent}\n\n| Agent | Status | Usage/Limit |\n| :--- | :--- | :--- |\n| ${agent} | ${res.status} | ${res.display} |`;
+                    } else {
+                      markdown = "### Current AI Agent Quotas\n\n| Agent | Status | Usage/Limit |\n| :--- | :--- | :--- |\n";
+                      markdown += (Object.entries(all) as [keyof AllRateLimits, AllRateLimits[keyof AllRateLimits]][])
+                        .map(
+                          ([k, v]) =>
+                            `| ${k === "amazonQ" ? "amazon-q" : k} | ${v.status} | ${v.display} |`
+                        )
+                        .join("\n");
+                    }
 
         return {
           jsonrpc: "2.0",

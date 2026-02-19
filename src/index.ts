@@ -40,6 +40,13 @@ export const SUPPORTED_AGENTS = ["claude", "gemini", "copilot", "amazon-q", "cod
  */
 export type SupportedAgent = (typeof SUPPORTED_AGENTS)[number];
 
+/**
+ * Maps a SupportedAgent name to its corresponding key in AllRateLimits.
+ */
+export function agentToSdkKey(agent: SupportedAgent): keyof AllRateLimits {
+  return agent === "amazon-q" ? "amazonQ" : (agent as keyof AllRateLimits);
+}
+
 // Shared types
 export type * from "./types.js";
 
@@ -84,7 +91,7 @@ export type {
 // High-level Orchestration API Implementation
 // ---------------------------------------------------------------------------
 
-const DEFAULT_SKIPPED_RESULT: QuotaResult<any> = {
+const DEFAULT_SKIPPED_RESULT: QuotaResult<null> = {
   status: "no-data",
   data: null,
   error: null,
@@ -178,24 +185,26 @@ export async function fetchAllRateLimits(options?: {
     }
   };
 
-  const pendingPromises = agentsToFetch.map(async (name) => {
-    const result = await fetchers[name]();
-    return { name, result };
-  });
-
-  const results = await Promise.all(pendingPromises);
-
   const finalResult: AllRateLimits = {
-    claude: DEFAULT_SKIPPED_RESULT,
-    gemini: DEFAULT_SKIPPED_RESULT,
-    copilot: DEFAULT_SKIPPED_RESULT,
-    amazonQ: DEFAULT_SKIPPED_RESULT,
-    codex: DEFAULT_SKIPPED_RESULT
+    claude: DEFAULT_SKIPPED_RESULT as unknown as QuotaResult<ClaudeUsageData>,
+    gemini: DEFAULT_SKIPPED_RESULT as unknown as QuotaResult<GeminiUsage>,
+    copilot: DEFAULT_SKIPPED_RESULT as unknown as QuotaResult<CopilotUsage>,
+    amazonQ: DEFAULT_SKIPPED_RESULT as unknown as QuotaResult<AmazonQUsageSnapshot>,
+    codex: DEFAULT_SKIPPED_RESULT as unknown as QuotaResult<RateLimitSnapshot>
   };
 
+  const results = await Promise.all(agentsToFetch.map(async (name) => {
+    const result = await fetchers[name]();
+    return { name, result };
+  }));
+
   for (const { name, result } of results) {
-    const key = name === "amazon-q" ? "amazonQ" : name;
-    (finalResult as any)[key] = result;
+    const key = agentToSdkKey(name);
+    if (key === "claude") finalResult.claude = result;
+    else if (key === "gemini") finalResult.gemini = result;
+    else if (key === "copilot") finalResult.copilot = result;
+    else if (key === "amazonQ") finalResult.amazonQ = result;
+    else if (key === "codex") finalResult.codex = result;
   }
 
   return finalResult;
