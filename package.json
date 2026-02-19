@@ -1,6 +1,6 @@
 {
   "name": "@metyatech/ai-quota",
-  "version": "0.5.7",
+  "version": "0.5.8",
   "description": "AI agent quota/rate-limit fetching library and CLI for Claude, Gemini, Copilot, Amazon Q, and Codex",
   "license": "MIT",
   "type": "module",
