@@ -101,6 +101,8 @@ export type GeminiModelUsage = {
 export type GeminiUsage = {
   "gemini-3-pro-preview"?: GeminiModelUsage;
   "gemini-3-flash-preview"?: GeminiModelUsage;
+  /** Allow for other dynamic model IDs */
+  [modelId: string]: GeminiModelUsage | undefined;
 };
 
 // ---------------------------------------------------------------------------

@@ -172,7 +172,12 @@ export async function fetchAllRateLimits(options?: {
       try {
         const envPath = process.env.AMAZON_Q_STATE_PATH;
         const statePath = envPath ? envPath : resolveAmazonQUsageStatePath(os.homedir());
-        const data = fetchAmazonQRateLimits(statePath, DEFAULT_AMAZON_Q_MONTHLY_LIMIT);
+
+        const envLimit = process.env.AMAZON_Q_MONTHLY_LIMIT;
+        const limit = envLimit ? parseInt(envLimit, 10) : DEFAULT_AMAZON_Q_MONTHLY_LIMIT;
+        const finalLimit = isNaN(limit) ? DEFAULT_AMAZON_Q_MONTHLY_LIMIT : limit;
+
+        const data = fetchAmazonQRateLimits(statePath, finalLimit);
         return { status: "ok", data, error: null, display: `${data.used}/${data.limit} requests used` };
       } catch (e) {
         return { status: "error", data: null, error: String(e), display: `error: ${e}` };

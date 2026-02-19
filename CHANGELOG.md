@@ -43,6 +43,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Refactored Constants:** Moved the default Amazon Q monthly limit to the `amazon-q.ts` module to improve code decoupling and maintainability.
 
+## [0.9.1] - 2026-02-20
+
+### Added
+
+- **Dynamic Gemini Models:** Refactored the Gemini fetcher to dynamically capture all model buckets returned by the API, providing future-proof support for new models.
+- **Configurable Amazon Q Limit:** Added support for the `AMAZON_Q_MONTHLY_LIMIT` environment variable to override the default 50-request limit.
+
+### Fixed
+
+- **Type Safety:** Updated `GeminiUsage` type with an index signature to support dynamic model IDs.
+
 ## [0.9.0] - 2026-02-20
 
 ### Added

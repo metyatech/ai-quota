@@ -283,26 +283,27 @@ export async function fetchGeminiRateLimits(): Promise<GeminiUsage | null> {
 
     if (Array.isArray(quotaData.buckets)) {
       for (const bucket of quotaData.buckets as Record<string, unknown>[]) {
-        const modelId = bucket.modelId;
-        if (modelId === "gemini-3-pro-preview" || modelId === "gemini-3-flash-preview") {
-          // remainingFraction is usually between 0.0 and 1.0.
-          // Keep fractional precision so tiny consumption (<0.5%) does not get rounded away.
-          const remainingFraction =
-            typeof bucket.remainingFraction === "number" &&
-            Number.isFinite(bucket.remainingFraction)
-              ? Math.min(Math.max(bucket.remainingFraction, 0), 1)
-              : 1.0;
-          const limit = 100; // percentage scale
-          const usedRaw = (1.0 - remainingFraction) * 100;
-          const used = Math.round(usedRaw * 1_000_000) / 1_000_000;
-          usage[modelId as keyof GeminiUsage] = {
-            limit,
-            usage: used,
-            resetAt: bucket.resetTime
-              ? new Date(bucket.resetTime as string)
-              : new Date(Date.now() + 3600000)
-          };
-        }
+        const modelId = bucket.modelId as string;
+        if (!modelId) continue;
+
+        // remainingFraction is usually between 0.0 and 1.0.
+        // Keep fractional precision so tiny consumption (<0.5%) does not get rounded away.
+        const remainingFraction =
+          typeof bucket.remainingFraction === "number" &&
+          Number.isFinite(bucket.remainingFraction)
+            ? Math.min(Math.max(bucket.remainingFraction, 0), 1)
+            : 1.0;
+        const limit = 100; // percentage scale
+        const usedRaw = (1.0 - remainingFraction) * 100;
+        const used = Math.round(usedRaw * 1_000_000) / 1_000_000;
+        
+        usage[modelId] = {
+          limit,
+          usage: used,
+          resetAt: bucket.resetTime
+            ? new Date(bucket.resetTime as string)
+            : new Date(Date.now() + 3600000)
+        };
       }
     }
 
