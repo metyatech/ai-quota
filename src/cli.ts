@@ -372,13 +372,13 @@ async function main(): Promise<void> {
         "  ai-quota --json\n" +
         "  ai-quota copilot --json\n"
     );
-    process.exit(0);
+    return;
   }
 
   // --version / -V
   if (args.includes("--version") || args.includes("-V")) {
     process.stdout.write(`${getVersion()}\n`);
-    process.exit(0);
+    return;
   }
 
   const jsonMode = args.includes("--json");
@@ -397,7 +397,8 @@ async function main(): Promise<void> {
       process.stderr.write(
         `ai-quota: unknown agent '${a}'. Valid agents: ${ALL_AGENTS.join(", ")}\n`
       );
-      process.exit(1);
+      process.exitCode = 1;
+      return;
     }
     requested.push(a as AgentName);
   }
@@ -432,12 +433,14 @@ async function main(): Promise<void> {
     }
   }
 
-  process.exit(anyError ? 1 : 0);
+  if (anyError) {
+    process.exitCode = 1;
+  }
 }
 
 main().catch((err: unknown) => {
   process.stderr.write(
     `ai-quota: fatal error: ${err instanceof Error ? err.message : String(err)}\n`
   );
-  process.exit(1);
+  process.exitCode = 1;
 });
