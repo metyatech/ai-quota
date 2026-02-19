@@ -5,6 +5,21 @@
  */
 
 import { fetchAllRateLimits } from "./index.js";
+import type { AllRateLimits } from "./types.js";
+
+interface McpRequest {
+  jsonrpc: string;
+  id: number | string;
+  method: string;
+  params?: any;
+}
+
+interface McpToolCallParams {
+  name: string;
+  arguments?: {
+    agent?: "claude" | "gemini" | "copilot" | "amazon-q" | "codex";
+  };
+}
 
 /**
  * Runs the ai-quota MCP server on stdin/stdout.
@@ -16,7 +31,7 @@ export async function runMcpServer(): Promise<void> {
     for (const line of lines) {
       if (!line.trim()) continue;
       try {
-        const request = JSON.parse(line);
+        const request = JSON.parse(line) as McpRequest;
         if (request.method === "initialize") {
           process.stdout.write(JSON.stringify({
             jsonrpc: "2.0",
@@ -24,7 +39,7 @@ export async function runMcpServer(): Promise<void> {
             result: {
               protocolVersion: "2024-11-05",
               capabilities: { tools: {} },
-              serverInfo: { name: "ai-quota", version: "0.5.0" }
+              serverInfo: { name: "ai-quota", version: "0.5.1" }
             }
           }) + "\n");
         } else if (request.method === "tools/list") {
@@ -38,23 +53,31 @@ export async function runMcpServer(): Promise<void> {
                 inputSchema: {
                   type: "object",
                   properties: {
-                    agent: { type: "string", enum: ["claude", "gemini", "copilot", "amazon-q", "codex"], description: "Optional specific agent to check" }
+                    agent: { 
+                      type: "string", 
+                      enum: ["claude", "gemini", "copilot", "amazon-q", "codex"], 
+                      description: "Optional specific agent to check" 
+                    }
                   }
                 }
               }]
             }
           }) + "\n");
         } else if (request.method === "tools/call") {
-          const { name, arguments: args } = request.params;
-          if (name === "get_quota") {
+          const params = request.params as McpToolCallParams;
+          if (params.name === "get_quota") {
             const all = await fetchAllRateLimits();
-            const agent = (args as any)?.agent;
-            const result = agent ? (all as any)[agent === "amazon-q" ? "amazonQ" : agent] : all;
+            const agent = params.arguments?.agent;
             
-            // Format result for tool output
-            const text = agent 
-              ? `${agent}: ${result.display}` 
-              : Object.entries(all).map(([k, v]) => `${k}: ${(v as any).display}`).join("\n");
+            let text: string;
+            if (agent) {
+              const sdkKey = agent === "amazon-q" ? "amazonQ" : (agent as keyof AllRateLimits);
+              text = `${agent}: ${all[sdkKey].display}`;
+            } else {
+              text = Object.entries(all)
+                .map(([k, v]) => `${k === "amazonQ" ? "amazon-q" : k}: ${v.display}`)
+                .join("\n");
+            }
 
             process.stdout.write(JSON.stringify({
               jsonrpc: "2.0",
@@ -66,7 +89,7 @@ export async function runMcpServer(): Promise<void> {
           }
         }
       } catch (e) {
-        // Ignore invalid JSON
+        // Ignore invalid JSON or processing errors in server mode
       }
     }
   });

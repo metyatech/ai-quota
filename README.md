@@ -31,6 +31,29 @@ ai-quota --version  Show version
 
 Supported agent names: `claude`, `gemini`, `copilot`, `amazon-q`, `codex`
 
+## Model Context Protocol (MCP)
+
+`ai-quota` can act as an MCP server, allowing AI agents (like Claude Desktop) to check your
+remaining quota automatically.
+
+### Setup for Claude Desktop
+
+Add the following to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "ai-quota": {
+      "command": "npx",
+      "args": ["-y", "@metyatech/ai-quota", "--mcp"]
+    }
+  }
+}
+```
+
+This exposes the `get_quota` tool to Claude, which it can use to stay aware of its own usage
+limits across different models and providers.
+
 ### Human-readable output example
 
 ```
