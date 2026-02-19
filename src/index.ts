@@ -41,11 +41,19 @@ export const SUPPORTED_AGENTS = ["claude", "gemini", "copilot", "amazon-q", "cod
  */
 export type SupportedAgent = (typeof SUPPORTED_AGENTS)[number];
 
+const AGENT_TO_SDK_KEY: Record<SupportedAgent, keyof Omit<AllRateLimits, "summary">> = {
+  claude: "claude",
+  gemini: "gemini",
+  copilot: "copilot",
+  "amazon-q": "amazonQ",
+  codex: "codex"
+};
+
 /**
  * Maps a SupportedAgent name to its corresponding key in AllRateLimits.
  */
 export function agentToSdkKey(agent: SupportedAgent): keyof Omit<AllRateLimits, "summary"> {
-  return agent === "amazon-q" ? "amazonQ" : (agent as keyof Omit<AllRateLimits, "summary">);
+  return AGENT_TO_SDK_KEY[agent];
 }
 
 // Shared types
@@ -198,16 +206,10 @@ export async function fetchAllRateLimits(options?: {
     return { name, result };
   }));
 
-  let maxStress = 0;
-  let criticalCount = 0;
-
   for (const { name, result } of results) {
-    const key = agentToSdkKey(name);
-    if (key === "claude") finalResult.claude = result;
-    else if (key === "gemini") finalResult.gemini = result;
-    else if (key === "copilot") finalResult.copilot = result;
-    else if (key === "amazonQ") finalResult.amazonQ = result;
-    else if (key === "codex") finalResult.codex = result;
+    const sdkKey = agentToSdkKey(name);
+    // @ts-expect-error - Result mapping is internally consistent but TS can't trace the generic T through the fetchers map
+    finalResult[sdkKey] = result;
 
     // Calculate overall status
     if (result.status === "error") criticalCount++;

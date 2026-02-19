@@ -43,6 +43,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Refactored Constants:** Moved the default Amazon Q monthly limit to the `amazon-q.ts` module to improve code decoupling and maintainability.
 
+## [0.8.2] - 2026-02-20
+
+### Changed
+
+- **Internal Refactoring:** Unified the agent mapping logic into a centralized data structure, improving maintainability and ensuring consistent behavior across SDK, CLI, and MCP interfaces.
+
 ## [0.8.1] - 2026-02-20
 
 ### Added
