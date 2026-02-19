@@ -54,19 +54,20 @@ async function main(): Promise<void> {
   
   const allResults = await fetchAllRateLimits({ verbose, timeoutSeconds: 10 });
   
-  const agentsToDisplay = (requestedAgents.length > 0 
-    ? requestedAgents 
-    : ["claude", "gemini", "copilot", "amazon-q", "codex"]) as (keyof typeof allResults)[];
+  const agentsToDisplay = (requestedAgents.length > 0
+    ? requestedAgents
+    : ["claude", "gemini", "copilot", "amazon-q", "codex"]) as string[];
 
   let anyError = false;
-  const outputJson: any = {};
+  const outputJson: Record<string, unknown> = {};
 
   for (const key of agentsToDisplay) {
-    const res = allResults[key === ("amazon-q" as any) ? "amazonQ" : key];
+    const sdkKey = key === "amazon-q" ? "amazonQ" : (key as keyof typeof allResults);
+    const res = allResults[sdkKey];
     if (!res) continue;
 
     if (res.status === "error") anyError = true;
-    
+
     if (jsonMode) {
       outputJson[key] = res.data || { error: res.error };
     } else if (!quiet) {
