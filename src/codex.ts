@@ -184,24 +184,15 @@ type JsonlRateLimitEntry = {
 };
 
 function convertJsonlRateLimits(entry: JsonlRateLimitEntry, now: Date): RateLimitSnapshot {
-  const nowSecs = Math.floor(now.getTime() / 1000);
+  const convertWindow = (w: any): RateLimitWindow | null => {
+    if (!w || typeof w !== "object") return null;
+    const used = w.used_percent ?? w.usedPercent;
+    if (typeof used !== "number") return null;
 
-  const convertWindow = (
-    w:
-      | {
-          used_percent?: number;
-          window_duration_minutes?: number;
-          resets_in_seconds?: number;
-        }
-      | null
-      | undefined
-  ): RateLimitWindow | null => {
-    if (!w || typeof w.used_percent !== "number") return null;
     return {
-      used_percent: w.used_percent,
-      windowDurationMins:
-        typeof w.window_duration_minutes === "number" ? w.window_duration_minutes : null,
-      resetsAt: typeof w.resets_in_seconds === "number" ? nowSecs + w.resets_in_seconds : null
+      used_percent: used,
+      window_minutes: w.window_minutes ?? w.window_duration_minutes ?? w.windowDurationMins ?? null,
+      resets_at: w.resets_at ?? w.resetsAt ?? (typeof w.resets_in_seconds === "number" ? Math.floor(now.getTime() / 1000) + w.resets_in_seconds : null)
     };
   };
 
@@ -217,7 +208,8 @@ async function readCodexRateLimitsFromSessions(
 ): Promise<RateLimitSnapshot | null> {
   const sessionsDir = join(codexHome, "sessions");
 
-  for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+  // Search from tomorrow to 7 days ago to handle time zone offsets
+  for (let dayOffset = -1; dayOffset < 8; dayOffset++) {
     const date = new Date(now.getTime() - dayOffset * 86400000);
     const yyyy = date.getFullYear().toString();
     const mm = (date.getMonth() + 1).toString().padStart(2, "0");
@@ -245,7 +237,6 @@ async function readCodexRateLimitsFromSessions(
       withStats.sort((a, b) => b.mtimeMs - a.mtimeMs);
       files = withStats.map((f) => join(dayDir, f.name));
     } catch {
-      // Directory does not exist or is not readable; skip.
       continue;
     }
 
@@ -258,27 +249,25 @@ async function readCodexRateLimitsFromSessions(
       }
 
       const lines = content.split("\n");
-      // Read in reverse (last lines = most recent)
       for (let i = lines.length - 1; i >= 0; i--) {
         const line = lines[i].trim();
-        if (!line) continue;
-        let parsed: unknown;
+        if (!line || !line.startsWith("{")) continue;
+        
         try {
-          parsed = JSON.parse(line);
+          const obj = JSON.parse(line);
+          const payload = obj.payload;
+          if (!payload || payload.type !== "token_count") continue;
+          
+          const rateLimits = payload.info?.rate_limits;
+          if (!rateLimits) continue;
+
+          const result = convertJsonlRateLimits(rateLimits, now);
+          if (result && (result.primary || result.secondary)) {
+            return result;
+          }
         } catch {
           continue;
         }
-        if (typeof parsed !== "object" || parsed === null) continue;
-        const obj = parsed as Record<string, unknown>;
-        const payload = obj["payload"];
-        if (typeof payload !== "object" || payload === null) continue;
-        const p = payload as Record<string, unknown>;
-        if (p["type"] !== "token_count") continue;
-        const info = p["info"];
-        if (typeof info !== "object" || info === null) continue;
-        const rateLimits = (info as Record<string, unknown>)["rate_limits"];
-        if (typeof rateLimits !== "object" || rateLimits === null) continue;
-        return convertJsonlRateLimits(rateLimits as JsonlRateLimitEntry, now);
       }
     }
   }

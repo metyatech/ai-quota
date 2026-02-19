@@ -63,11 +63,14 @@ type AgentResult =
   | { status: "error"; display: string; json: Record<string, unknown> };
 
 // ---------------------------------------------------------------------------
-// Copilot: resolve token from env or gh CLI hosts.yml
+// Copilot: resolve token from env or gh CLI hosts.yml or 'gh auth token'
 // ---------------------------------------------------------------------------
 
-function getCopilotToken(): string | null {
-  if (process.env.GITHUB_TOKEN) return process.env.GITHUB_TOKEN;
+function getCopilotToken(verbose: boolean): string | null {
+  if (process.env.GITHUB_TOKEN) {
+    if (verbose) process.stderr.write("[verbose] copilot: using token from GITHUB_TOKEN env var\n");
+    return process.env.GITHUB_TOKEN;
+  }
   const candidates = [
     path.join(os.homedir(), ".config", "gh", "hosts.yml"),
     path.join(os.homedir(), "AppData", "Roaming", "GitHub CLI", "hosts.yml")
@@ -75,14 +78,32 @@ function getCopilotToken(): string | null {
   for (const p of candidates) {
     try {
       if (!fs.existsSync(p)) continue;
+      if (verbose) process.stderr.write(`[verbose] copilot: checking ${p}\n`);
       const content = fs.readFileSync(p, "utf8");
       // Simple line-by-line search for oauth_token under github.com
       const match = content.match(/oauth_token:\s*(\S+)/);
-      if (match?.[1]) return match[1];
+      if (match?.[1]) {
+        if (verbose) process.stderr.write(`[verbose] copilot: found token in ${p}\n`);
+        return match[1];
+      }
     } catch {
       // ignore
     }
   }
+
+  // Final fallback: try 'gh auth token'
+  try {
+    if (verbose) process.stderr.write("[verbose] copilot: trying 'gh auth token --hostname github.com'\n");
+    const { execSync } = createRequire(import.meta.url)("node:child_process");
+    const token = execSync("gh auth token --hostname github.com", { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+    if (token) {
+      if (verbose) process.stderr.write("[verbose] copilot: found token via gh CLI\n");
+      return token;
+    }
+  } catch {
+    // ignore
+  }
+
   return null;
 }
 
@@ -101,20 +122,17 @@ async function fetchClaude(verbose: boolean): Promise<AgentResult> {
       };
     }
 
-    // Use the five_hour bucket as primary display metric
-    const bucket = data.five_hour ?? data.seven_day;
-    if (!bucket) {
-      return {
-        status: "no-data",
-        display: "no data",
-        json: { data }
-      };
+    const buckets: string[] = [];
+    if (data.five_hour) {
+      const resetIn = formatResetIn(new Date(data.five_hour.resets_at));
+      buckets.push(`5h: ${Math.round(data.five_hour.utilization)}% (resets in ${resetIn})`);
+    }
+    if (data.seven_day) {
+      const resetIn = formatResetIn(new Date(data.seven_day.resets_at));
+      buckets.push(`7d: ${Math.round(data.seven_day.utilization)}% (resets in ${resetIn})`);
     }
 
-    const usedPercent = Math.round(bucket.utilization);
-    const resetAt = new Date(bucket.resets_at);
-    const resetIn = formatResetIn(resetAt);
-    const display = `${usedPercent}% used  (resets in ${resetIn})`;
+    const display = buckets.length > 0 ? buckets.join(", ") : "no data";
 
     if (verbose) {
       process.stderr.write(
@@ -126,8 +144,8 @@ async function fetchClaude(verbose: boolean): Promise<AgentResult> {
       status: "ok",
       display,
       json: {
-        usedPercent,
-        resetsAt: resetAt.toISOString(),
+        usedPercent: data.five_hour ? Math.round(data.five_hour.utilization) : null,
+        resetsAt: data.five_hour ? new Date(data.five_hour.resets_at).toISOString() : null,
         five_hour: data.five_hour,
         seven_day: data.seven_day,
         seven_day_sonnet: data.seven_day_sonnet,
@@ -149,16 +167,18 @@ async function fetchGemini(verbose: boolean): Promise<AgentResult> {
 
     const pro = data["gemini-3-pro-preview"];
     const flash = data["gemini-3-flash-preview"];
-    const primary = pro ?? flash;
 
-    if (!primary) {
-      return { status: "no-data", display: "no data", json: { data } };
+    const models: string[] = [];
+    if (pro) {
+      const resetIn = formatResetIn(pro.resetAt);
+      models.push(`Pro: ${Math.round(pro.usage)}% (resets in ${resetIn})`);
+    }
+    if (flash) {
+      const resetIn = formatResetIn(flash.resetAt);
+      models.push(`Flash: ${Math.round(flash.usage)}% (resets in ${resetIn})`);
     }
 
-    const usedPercent = Math.round(primary.usage);
-    const resetAt = primary.resetAt;
-    const resetIn = formatResetIn(resetAt);
-    const display = `${usedPercent}% used  (resets in ${resetIn})`;
+    const display = models.length > 0 ? models.join(", ") : "no data";
 
     if (verbose) {
       process.stderr.write(
@@ -166,7 +186,11 @@ async function fetchGemini(verbose: boolean): Promise<AgentResult> {
       );
     }
 
-    const jsonData: Record<string, unknown> = { usedPercent, resetsAt: resetAt.toISOString() };
+    const primary = pro ?? flash;
+    const jsonData: Record<string, unknown> = {
+      usedPercent: primary ? Math.round(primary.usage) : null,
+      resetsAt: primary ? primary.resetAt.toISOString() : null
+    };
     if (pro) {
       jsonData["gemini-3-pro-preview"] = {
         usedPercent: Math.round(pro.usage),
@@ -189,7 +213,7 @@ async function fetchGemini(verbose: boolean): Promise<AgentResult> {
 
 async function fetchCopilot(verbose: boolean): Promise<AgentResult> {
   try {
-    const token = getCopilotToken();
+    const token = getCopilotToken(verbose);
     if (!token) {
       return {
         status: "no-data",
@@ -267,6 +291,10 @@ async function fetchAmazonQ(verbose: boolean): Promise<AgentResult> {
 
 async function fetchCodex(verbose: boolean): Promise<AgentResult> {
   try {
+    const codexHome = path.join(os.homedir(), ".codex");
+    if (verbose) {
+      process.stderr.write(`[verbose] codex: checking directory ${codexHome}\n`);
+    }
     const snapshot = await fetchCodexRateLimits({ timeoutSeconds: 10 });
     if (!snapshot) {
       return { status: "no-data", display: "no data", json: { error: null, data: null } };
@@ -277,23 +305,22 @@ async function fetchCodex(verbose: boolean): Promise<AgentResult> {
       return { status: "no-data", display: "no data", json: { error: null, data: null } };
     }
 
-    // Use the shortest window (five-hour) as primary display metric
-    const win = status.windows.find((w) => w.key === "fiveHour") ?? status.windows[0];
-    if (!win) {
-      return { status: "no-data", display: "no data", json: { error: null, data: null } };
+    const windows: string[] = [];
+    for (const w of status.windows) {
+      const resetIn = formatResetIn(w.resetAt);
+      windows.push(`${w.label}: ${Math.round(100 - w.percentLeft)}% (resets in ${resetIn})`);
     }
 
-    const usedPercent = Math.round(100 - win.percentLeft);
-    const resetIn = formatResetIn(win.resetAt);
-    const display = `${usedPercent}% used  (resets in ${resetIn})`;
+    const display = windows.length > 0 ? windows.join(", ") : "no data";
 
     if (verbose) {
       process.stderr.write(`[verbose] codex: windows=${JSON.stringify(status.windows)}\n`);
     }
 
+    const win = status.windows.find((w) => w.key === "fiveHour") ?? status.windows[0];
     const jsonData: Record<string, unknown> = {
-      usedPercent,
-      resetsAt: win.resetAt.toISOString()
+      usedPercent: win ? Math.round(100 - win.percentLeft) : null,
+      resetsAt: win ? win.resetAt.toISOString() : null
     };
     for (const w of status.windows) {
       jsonData[w.key] = {
