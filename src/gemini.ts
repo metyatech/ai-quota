@@ -219,13 +219,15 @@ async function getCredentials(): Promise<{ accessToken: string }> {
 
 /**
  * Fetches Gemini quota usage from the Cloud Code Assist API.
- *
- * Reads OAuth credentials from `~/.gemini/oauth_creds.json` and automatically
- * refreshes the access token when needed. Returns null on any error.
- *
- * The environment variables `AGENT_RUNNER_GEMINI_OAUTH_CLIENT_ID` and
- * `AGENT_RUNNER_GEMINI_OAUTH_CLIENT_SECRET` can override the OAuth client
- * credentials when the Gemini CLI is not installed.
+ * 
+ * This function performs a multi-step OAuth process:
+ * 1. Reads credentials from `~/.gemini/oauth_creds.json`.
+ * 2. Automatically refreshes the access token if it's missing or expired.
+ * 3. Calls the `loadCodeAssist` API to identify the active project.
+ * 4. Calls the `retrieveUserQuota` API to get the actual usage metrics.
+ * 
+ * @returns A promise resolving to GeminiUsage or null if the process fails.
+ *          The returned object contains per-model usage data for Pro and Flash models.
  */
 export async function fetchGeminiRateLimits(): Promise<GeminiUsage | null> {
   try {

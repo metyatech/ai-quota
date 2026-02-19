@@ -37,9 +37,13 @@ function readClaudeCredentials(): { accessToken: string; expiresAt: number } | n
 
 /**
  * Fetches Claude usage data from the Anthropic OAuth usage API.
- *
- * Returns null when credentials are unavailable, expired, or the request fails.
- * Credentials are read from `~/.claude/.credentials.json` (Claude desktop app format).
+ * 
+ * This function attempts to read credentials from the Claude desktop application's
+ * local storage (`~/.claude/.credentials.json`) and calls the Anthropic usage API.
+ * 
+ * @param timeoutMs - Request timeout in milliseconds (default: 5000ms)
+ * @returns A promise resolving to ClaudeUsageData or null if credentials are 
+ *          missing, expired, or the API request fails.
  */
 export async function fetchClaudeRateLimits(
   timeoutMs: number = 5000

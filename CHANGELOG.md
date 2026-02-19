@@ -43,6 +43,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Refactored Constants:** Moved the default Amazon Q monthly limit to the `amazon-q.ts` module to improve code decoupling and maintainability.
 
+## [0.5.7] - 2026-02-19
+
+### Added
+
+- **Complete API Documentation:** Finished adding detailed JSDoc comments to all individual agent fetchers (Claude, Gemini, Copilot, Amazon Q, and Codex), ensuring a premium developer experience in all supported environments.
+
 ## [0.5.6] - 2026-02-19
 
 ### Added

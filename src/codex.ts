@@ -376,14 +376,15 @@ async function fetchCodexRateLimitsFromApi(
 
 /**
  * Fetches Codex (ChatGPT) rate limit data.
- *
- * Strategy (in order):
- * 1. Read rate_limits from the most recent JSONL session file in
- *    `~/.codex/sessions/YYYY/MM/DD/*.jsonl` (last 7 days).
- * 2. If no session data is found, call the ChatGPT backend API using the
- *    access token from `~/.codex/auth.json`.
- *
- * Returns null when no data source is available or all requests fail.
+ * 
+ * This function uses a prioritized strategy to find usage data:
+ * 1. Reads the most recent JSONL session file from `~/.codex/sessions/`.
+ *    This is the fastest method and handles both modern and legacy log formats.
+ * 2. If no session data is found, it attempts to call the ChatGPT backend API 
+ *    using the access token found in `~/.codex/auth.json`.
+ * 
+ * @param options - Configuration for file paths and timeouts
+ * @returns A promise resolving to a RateLimitSnapshot or null if no source is available
  */
 export async function fetchCodexRateLimits(
   options?: FetchCodexRateLimitsOptions

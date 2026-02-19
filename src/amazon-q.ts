@@ -131,11 +131,15 @@ export function recordAmazonQUsage(
 }
 
 /**
- * Reads the local counter and returns a quota snapshot.
- *
- * The `monthlyLimit` parameter is the configured monthly request limit
- * (e.g. 50 for the free tier). The snapshot's `percentRemaining` is
- * computed from `(limit - used) / limit * 100`.
+ * Reads the local counter and returns a quota snapshot for Amazon Q Developer.
+ * 
+ * Since Amazon Q does not provide a public usage API, this function relies
+ * on a local JSON state file updated by the calling application.
+ * 
+ * @param statePath - Path to the local usage state JSON file
+ * @param monthlyLimit - The configured monthly request limit (e.g., 50)
+ * @param now - Reference date for parsing (default: current system time)
+ * @returns A snapshot of the current local usage counter
  */
 export function fetchAmazonQRateLimits(
   statePath: string,
