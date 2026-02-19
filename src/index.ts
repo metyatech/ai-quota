@@ -56,7 +56,7 @@ export type {
 // High-level Orchestration API
 // ---------------------------------------------------------------------------
 
-function formatResetIn(resetAt: Date): string {
+export function formatResetIn(resetAt: Date): string {
   const diffMs = resetAt.getTime() - Date.now();
   if (diffMs <= 0) return "already reset";
   const totalMinutes = Math.floor(diffMs / 60000);

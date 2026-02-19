@@ -6,7 +6,7 @@
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { fetchAllRateLimits } from "./index.js";
+import { fetchAllRateLimits, formatResetIn } from "./index.js";
 
 function getVersion(): string {
   try {
