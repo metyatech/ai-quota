@@ -10,21 +10,39 @@
 // Codex / generic rate-limit types
 // ---------------------------------------------------------------------------
 
+/**
+ * Represents a specific rate limit window (e.g., 5-hour or weekly).
+ */
 export type RateLimitWindow = {
+  /** Percentage of quota used (0-100) */
   usedPercent?: number;
+  /** Legacy snake_case version of usedPercent */
   used_percent?: number;
+  /** Duration of the window in minutes */
   windowDurationMins?: number | null;
+  /** Window duration in minutes (snake_case) */
   window_minutes?: number | null;
+  /** Legacy camelCase version of windowMinutes */
   windowMinutes?: number | null;
+  /** Unix timestamp (seconds) when the limit resets */
   resetsAt?: number | null;
+  /** Legacy snake_case version of resetsAt */
   resets_at?: number | null;
 };
 
+/**
+ * A collection of rate limit windows for a specific agent.
+ */
 export type RateLimitSnapshot = {
+  /** Primary limit window (usually the shortest/strictest) */
   primary?: RateLimitWindow | null;
+  /** Secondary limit window (usually longer-term) */
   secondary?: RateLimitWindow | null;
+  /** Optional credit/balance information */
   credits?: unknown;
+  /** Plan type information (e.g., "pro", "free") */
   planType?: string | null;
+  /** Legacy snake_case version of planType */
   plan_type?: string | null;
 };
 
@@ -32,15 +50,27 @@ export type RateLimitSnapshot = {
 // Claude types
 // ---------------------------------------------------------------------------
 
+/**
+ * A usage bucket for Anthropic Claude.
+ */
 export type ClaudeUsageBucket = {
-  utilization: number; // 0-100
-  resets_at: string; // ISO 8601
+  /** Usage percentage (0-100) */
+  utilization: number;
+  /** ISO 8601 timestamp of reset time */
+  resets_at: string;
 };
 
+/**
+ * Aggregated usage data for Claude.
+ */
 export type ClaudeUsageData = {
+  /** The 5-hour rolling window limit */
   five_hour: ClaudeUsageBucket | null;
+  /** The 7-day rolling window limit */
   seven_day: ClaudeUsageBucket | null;
+  /** Specific 7-day limit for Sonnet models */
   seven_day_sonnet: ClaudeUsageBucket | null;
+  /** Information about extra usage/credits beyond the base plan */
   extra_usage: {
     is_enabled: boolean;
     monthly_limit: number | null;
@@ -53,12 +83,21 @@ export type ClaudeUsageData = {
 // Gemini types
 // ---------------------------------------------------------------------------
 
+/**
+ * Model-specific usage data for Google Gemini.
+ */
 export type GeminiModelUsage = {
+  /** Maximum allowed requests/tokens in the window */
   limit: number;
+  /** Current usage (not necessarily a percentage, context-dependent) */
   usage: number;
+  /** Reset date */
   resetAt: Date;
 };
 
+/**
+ * Aggregated usage data for Gemini models.
+ */
 export type GeminiUsage = {
   "gemini-3-pro-preview"?: GeminiModelUsage;
   "gemini-3-flash-preview"?: GeminiModelUsage;
@@ -68,13 +107,23 @@ export type GeminiUsage = {
 // Copilot types
 // ---------------------------------------------------------------------------
 
+/**
+ * Usage data for GitHub Copilot.
+ */
 export type CopilotUsage = {
+  /** Percentage of premium quota remaining (0-100) */
   percentRemaining: number;
+  /** Date when the quota resets (usually monthly) */
   resetAt: Date;
+  /** Total entitlement (count of requests or tokens) */
   entitlement: number;
+  /** Amount used above the base entitlement */
   overageUsed: number;
+  /** Whether overage is currently allowed/enabled */
   overageEnabled: boolean;
+  /** Source of the data (internal API body or response header) */
   source: "user" | "header";
+  /** Raw response data for debugging */
   raw: unknown;
 };
 
@@ -82,11 +131,19 @@ export type CopilotUsage = {
 // Amazon Q types
 // ---------------------------------------------------------------------------
 
+/**
+ * Usage snapshot for Amazon Q Developer.
+ */
 export type AmazonQUsageSnapshot = {
+  /** Number of requests used in the current period */
   used: number;
+  /** Total requests allowed per period */
   limit: number;
+  /** Percentage of quota remaining (0-100) */
   percentRemaining: number;
+  /** Date when the limit is expected to reset */
   resetAt: Date;
+  /** Key identifying the current usage period (e.g., "2026-02") */
   periodKey: string;
 };
 
@@ -94,15 +151,28 @@ export type AmazonQUsageSnapshot = {
 // Aggregated types
 // ---------------------------------------------------------------------------
 
+/**
+ * Status of an agent fetch operation.
+ */
 export type AgentStatus = "ok" | "no-data" | "error";
 
+/**
+ * Generic result wrapper for a single agent's quota information.
+ */
 export type QuotaResult<T> = {
+  /** Fetch status */
   status: AgentStatus;
+  /** The actual quota data, or null if fetch failed or no data was found */
   data: T | null;
+  /** Error message if status is "error" */
   error: string | null;
+  /** Human-readable display string summarizing the status */
   display: string;
 };
 
+/**
+ * Complete set of rate limits for all supported AI agents.
+ */
 export type AllRateLimits = {
   claude: QuotaResult<ClaudeUsageData>;
   gemini: QuotaResult<GeminiUsage>;

@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-02-19
+
+### Added
+
+- **MCP Server Support:** Introduced a Model Context Protocol (MCP) server mode (`ai-quota --mcp`). AI agents can now check their own quotas via the `get_quota` tool.
+- **Full JSDoc Documentation:** Added detailed documentation to all public APIs and types, providing a better developer experience in IDEs.
+
+## [0.4.7] - 2026-02-19
+
+### Fixed
+
+- Added regression tests for modern Codex session log formats found in the wild.
+
+## [0.4.6] - 2026-02-19
+
+### Fixed
+
+- Restored support for the `AMAZON_Q_STATE_PATH` environment variable in the high-level SDK API.
+
 ## [0.4.5] - 2026-02-19
 
 ### Added
@@ -73,9 +92,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release.
-- `fetchClaudeRateLimits` — fetches Claude quota from the Anthropic OAuth usage API.
-- `fetchGeminiRateLimits` — fetches Gemini quota from the Cloud Code Assist API.
-- `fetchCopilotRateLimits`, `parseCopilotUserInfo`, `parseCopilotQuotaHeader` — fetches Copilot quota from the GitHub internal API.
-- `fetchAmazonQRateLimits`, `recordAmazonQUsage`, `loadAmazonQUsageState`, `saveAmazonQUsageState`, `resolveAmazonQUsageStatePath` — local counter-based quota tracking for Amazon Q Developer (no public API available).
-- `fetchCodexRateLimits`, `rateLimitSnapshotToStatus` — fetches Codex (ChatGPT) rate limits from JSONL session files or the ChatGPT backend API.
-- Shared types: `RateLimitWindow`, `RateLimitSnapshot`, `ClaudeUsageData`, `GeminiUsage`, `CopilotUsage`, `AmazonQUsageSnapshot`.

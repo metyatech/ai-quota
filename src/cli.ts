@@ -6,7 +6,7 @@
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { fetchAllRateLimits } from "./index.js";
+import { fetchAllRateLimits, runMcpServer } from "./index.js";
 import { formatResetIn } from "./utils.js";
 
 function getVersion(): string {
@@ -34,6 +34,7 @@ async function main(): Promise<void> {
         "Usage:\n" +
         "  ai-quota [agent]   Show quota for all agents, or a specific agent\n" +
         "  ai-quota --json    Output machine-readable JSON\n" +
+        "  ai-quota --mcp     Start as an MCP server\n" +
         "  ai-quota --quiet   Suppress non-error output\n" +
         "  ai-quota --verbose Show extra debug info on stderr\n" +
         "  ai-quota --help    Show this help message\n" +
@@ -44,6 +45,11 @@ async function main(): Promise<void> {
 
   if (args.includes("--version") || args.includes("-V")) {
     process.stdout.write(`${getVersion()}\n`);
+    return;
+  }
+
+  if (args.includes("--mcp")) {
+    await runMcpServer();
     return;
   }
 

@@ -53,6 +53,9 @@ export type {
   FetchCodexRateLimitsOptions
 } from "./codex.js";
 
+// MCP
+export { runMcpServer } from "./mcp.js";
+
 // ---------------------------------------------------------------------------
 // High-level Orchestration API
 // ---------------------------------------------------------------------------
@@ -61,6 +64,14 @@ const AMAZON_Q_MONTHLY_LIMIT = 50;
 
 /**
  * Fetches quota/usage for all supported agents using default credential discovery.
+ * 
+ * This is the primary entry point for the SDK, providing a unified interface
+ * to gather status across all configured AI providers.
+ * 
+ * @param options - Configuration options for the fetch operation
+ * @param options.verbose - Enable detailed logging to stderr
+ * @param options.timeoutSeconds - Global timeout for network requests (default: 10s)
+ * @returns A structured object containing quota information for all agents
  */
 export async function fetchAllRateLimits(options?: {
   verbose?: boolean;
