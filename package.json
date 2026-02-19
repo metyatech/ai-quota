@@ -36,9 +36,8 @@
     "build": "tsc -p tsconfig.build.json && node scripts/add-shebang.mjs",
     "test": "vitest run",
     "lint": "eslint . && tsc -p tsconfig.json --noEmit",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "verify": "npm run lint && npm test && npm run build"
+    "verify": "npm run lint && npm test && npm run build",
+    "verify:live": "npm run build && node dist/cli.js --verbose"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",

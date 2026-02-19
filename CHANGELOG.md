@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.5] - 2026-02-19
+
+### Added
+
+- New `npm run verify:live` script for easy developer-level verification via the CLI.
+
+### Changed
+
+- Simplified project structure: removed redundant `scripts/verify-live.ts` in favor of CLI verbose mode.
+- Improved `.gitignore` to keep the repository clean of build artifacts and temp files.
+- Internalized Amazon Q monthly limit constant.
+
 ## [0.4.4] - 2026-02-19
 
 ### Changed

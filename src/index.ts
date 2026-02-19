@@ -57,6 +57,8 @@ export type {
 // High-level Orchestration API
 // ---------------------------------------------------------------------------
 
+const AMAZON_Q_MONTHLY_LIMIT = 50;
+
 /**
  * Fetches quota/usage for all supported agents using default credential discovery.
  */
@@ -122,7 +124,7 @@ export async function fetchAllRateLimits(options?: {
     (async (): Promise<QuotaResult<AmazonQUsageSnapshot>> => {
       try {
         const statePath = resolveAmazonQUsageStatePath(os.homedir());
-        const data = fetchAmazonQRateLimits(statePath, 50);
+        const data = fetchAmazonQRateLimits(statePath, AMAZON_Q_MONTHLY_LIMIT);
         return { status: "ok", data, error: null, display: `${data.used}/${data.limit} requests used` };
       } catch (e) {
         return { status: "error", data: null, error: String(e), display: `error: ${e}` };
