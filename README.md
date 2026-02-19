@@ -54,8 +54,16 @@ Add the following to your `claude_desktop_config.json`:
 This exposes the `get_quota` tool to Claude, which it can use to stay aware of its own usage
 limits across different models and providers.
 
-**Tool: `get_quota`**
+### MCP Resources
 
+`ai-quota` also provides an MCP resource:
+- **URI:** `quota://current`
+- **Description:** A live, auto-updating Markdown table of all current AI agent quotas. 
+
+AI agents can "subscribe" to this resource to keep the quota information in their context
+without needing to explicitly call a tool.
+
+**Tool: `get_quota`**
 - `agent` (optional): Specific agent to check (`claude`, `gemini`, etc.). If omitted, returns quota for all agents in a Markdown table.
 
 ### Human-readable output example
@@ -104,6 +112,8 @@ To fetch quota for all agents at once:
 import { fetchAllRateLimits } from "@metyatech/ai-quota";
 
 const all = await fetchAllRateLimits();
+console.log("Overall status:", all.summary.status); // "healthy", "warning", or "critical"
+console.log("Summary message:", all.summary.message);
 console.log("Claude status:", all.claude.display);
 ```
 

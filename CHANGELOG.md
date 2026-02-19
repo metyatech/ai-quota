@@ -43,6 +43,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Refactored Constants:** Moved the default Amazon Q monthly limit to the `amazon-q.ts` module to improve code decoupling and maintainability.
 
+## [0.8.1] - 2026-02-20
+
+### Added
+
+- **Detailed Documentation:** Updated README.md with instructions for the new MCP resource (`quota://current`) and the SDK's global summary output.
+
 ## [0.8.0] - 2026-02-20
 
 ### Added
