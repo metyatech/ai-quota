@@ -120,6 +120,65 @@ describe("fetchCodexRateLimits – remote API only", () => {
     expect(fetchSpy).toHaveBeenCalled();
   });
 
+  it("uses reset_after_seconds when reset_at is missing", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-02-02T10:00:00Z"));
+
+    await mkdir(tmpDir, { recursive: true });
+    await writeFile(
+      join(tmpDir, "auth.json"),
+      JSON.stringify({ tokens: { access_token: "tok" } }),
+      "utf8"
+    );
+
+    const fetchSpy = vi.spyOn(globalThis, "fetch" as any).mockResolvedValue({
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      text: async () =>
+        JSON.stringify({
+          rate_limit: {
+            primary_window: { used_percent: 33, limit_window_seconds: 300 * 60, reset_after_seconds: 60 }
+          }
+        })
+    } as any);
+
+    const result = await fetchCodexRateLimits({ codexHome: tmpDir, timeoutSeconds: 1 });
+    expect(result.primary?.used_percent).toBe(33);
+    expect(result.secondary).toBeNull();
+    expect(result.primary?.resetsAt).toBe(Math.floor(Date.parse("2026-02-02T10:00:00Z") / 1000) + 60);
+    expect(fetchSpy).toHaveBeenCalled();
+
+    vi.useRealTimers();
+  });
+
+  it("accepts camelCase primaryWindow/secondaryWindow keys", async () => {
+    await mkdir(tmpDir, { recursive: true });
+    await writeFile(
+      join(tmpDir, "auth.json"),
+      JSON.stringify({ tokens: { access_token: "tok" } }),
+      "utf8"
+    );
+
+    const fetchSpy = vi.spyOn(globalThis, "fetch" as any).mockResolvedValue({
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      text: async () =>
+        JSON.stringify({
+          rate_limit: {
+            primaryWindow: { used_percent: 44, limit_window_seconds: 300 * 60, reset_after_seconds: 60 },
+            secondaryWindow: { used_percent: 55, limit_window_seconds: 10080 * 60, reset_after_seconds: 120 }
+          }
+        })
+    } as any);
+
+    const result = await fetchCodexRateLimits({ codexHome: tmpDir, timeoutSeconds: 1 });
+    expect(result.primary?.used_percent).toBe(44);
+    expect(result.secondary?.used_percent).toBe(55);
+    expect(fetchSpy).toHaveBeenCalled();
+  });
+
   it("throws endpoint_changed on 404", async () => {
     await writeFile(
       join(tmpDir, "auth.json"),
