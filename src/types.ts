@@ -130,26 +130,6 @@ export type CopilotUsage = {
 };
 
 // ---------------------------------------------------------------------------
-// Amazon Q types
-// ---------------------------------------------------------------------------
-
-/**
- * Usage snapshot for Amazon Q Developer.
- */
-export type AmazonQUsageSnapshot = {
-  /** Number of requests used in the current period */
-  used: number;
-  /** Total requests allowed per period */
-  limit: number;
-  /** Percentage of quota remaining (0-100) */
-  percentRemaining: number;
-  /** Date when the limit is expected to reset */
-  resetAt: Date;
-  /** Key identifying the current usage period (e.g., "2026-02") */
-  periodKey: string;
-};
-
-// ---------------------------------------------------------------------------
 // Aggregated types
 // ---------------------------------------------------------------------------
 
@@ -166,7 +146,10 @@ export type ErrorReason =
   | "network_error" 
   | "api_error" 
   | "no_credentials" 
+  | "token_expired"
   | "timeout" 
+  | "endpoint_changed"
+  | "parse_error"
   | "unknown";
 
 /**
@@ -206,6 +189,5 @@ export type AllRateLimits = {
   claude: QuotaResult<ClaudeUsageData>;
   gemini: QuotaResult<GeminiUsage>;
   copilot: QuotaResult<CopilotUsage>;
-  amazonQ: QuotaResult<AmazonQUsageSnapshot>;
   codex: QuotaResult<RateLimitSnapshot>;
 };

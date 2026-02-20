@@ -1,7 +1,8 @@
-import { readFile, readdir, stat } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import type { RateLimitSnapshot, RateLimitWindow } from "./types.js";
+import { QuotaFetchError } from "./errors.js";
 
 export type { RateLimitSnapshot, RateLimitWindow } from "./types.js";
 
@@ -26,10 +27,6 @@ export type FetchCodexRateLimitsOptions = {
   timeoutSeconds?: number;
   timingSink?: (phase: string, durationMs: number) => void;
 };
-
-// ---------------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------------
 
 function resolveCodexHome(codexHome?: string): string {
   return codexHome ?? join(homedir(), ".codex");
@@ -81,13 +78,8 @@ function clampPercent(value: number): number {
   return Math.min(Math.max(value, 0), 100);
 }
 
-// ---------------------------------------------------------------------------
-// Public conversion utility
-// ---------------------------------------------------------------------------
-
 /**
- * Converts a raw `RateLimitSnapshot` (from JSONL session files or the HTTP
- * API) into a structured `CodexStatus` with labelled usage windows.
+ * Converts a raw `RateLimitSnapshot` into a structured `CodexStatus` with labelled usage windows.
  */
 export function rateLimitSnapshotToStatus(
   snapshot: RateLimitSnapshot,
@@ -157,131 +149,8 @@ export function rateLimitSnapshotToStatus(
     });
   }
 
-  if (windows.length === 0) return null;
-
-  return {
-    windows,
-    credits: null,
-    raw: JSON.stringify(snapshot)
-  };
+  return { windows, credits: typeof snapshot.credits === "number" ? snapshot.credits : null, raw: "" };
 }
-
-// ---------------------------------------------------------------------------
-// JSONL session reader
-// ---------------------------------------------------------------------------
-
-type JsonlRateLimitEntry = {
-  primary?: {
-    used_percent?: number;
-    window_duration_minutes?: number;
-    resets_in_seconds?: number;
-  } | null;
-  secondary?: {
-    used_percent?: number;
-    window_duration_minutes?: number;
-    resets_in_seconds?: number;
-  } | null;
-};
-
-function convertJsonlRateLimits(entry: JsonlRateLimitEntry, now: Date): RateLimitSnapshot {
-  const convertWindow = (w: any): RateLimitWindow | null => {
-    if (!w || typeof w !== "object") return null;
-    const used = w.used_percent ?? w.usedPercent;
-    if (typeof used !== "number") return null;
-
-    return {
-      used_percent: used,
-      window_minutes: w.window_minutes ?? w.window_duration_minutes ?? w.windowDurationMins ?? null,
-      resets_at:
-        w.resets_at ??
-        w.resetsAt ??
-        (typeof w.resets_in_seconds === "number"
-          ? Math.floor(now.getTime() / 1000) + w.resets_in_seconds
-          : null)
-    };
-  };
-
-  return {
-    primary: convertWindow(entry.primary),
-    secondary: convertWindow(entry.secondary)
-  };
-}
-
-async function readCodexRateLimitsFromSessions(
-  codexHome: string,
-  now: Date
-): Promise<RateLimitSnapshot | null> {
-  const sessionsDir = join(codexHome, "sessions");
-
-  // Search from tomorrow to 7 days ago to handle time zone offsets
-  for (let dayOffset = -1; dayOffset < 8; dayOffset++) {
-    const date = new Date(now.getTime() - dayOffset * 86400000);
-    const yyyy = date.getFullYear().toString();
-    const mm = (date.getMonth() + 1).toString().padStart(2, "0");
-    const dd = date.getDate().toString().padStart(2, "0");
-    const dayDir = join(sessionsDir, yyyy, mm, dd);
-
-    let files: string[];
-    try {
-      const entries = await readdir(dayDir);
-      const jsonlFiles = entries.filter((f) => f.endsWith(".jsonl"));
-      if (jsonlFiles.length === 0) continue;
-
-      // Sort by modification time (newest first)
-      const withStats = await Promise.all(
-        jsonlFiles.map(async (f) => {
-          const fullPath = join(dayDir, f);
-          try {
-            const s = await stat(fullPath);
-            return { name: f, mtimeMs: s.mtimeMs };
-          } catch {
-            return { name: f, mtimeMs: 0 };
-          }
-        })
-      );
-      withStats.sort((a, b) => b.mtimeMs - a.mtimeMs);
-      files = withStats.map((f) => join(dayDir, f.name));
-    } catch {
-      continue;
-    }
-
-    for (const filePath of files) {
-      let content: string;
-      try {
-        content = await readFile(filePath, "utf8");
-      } catch {
-        continue;
-      }
-
-      const lines = content.split("\n");
-      for (let i = lines.length - 1; i >= 0; i--) {
-        const line = lines[i].trim();
-        if (!line || !line.startsWith("{")) continue;
-
-        try {
-                    const obj = JSON.parse(line);
-                    const payload = obj.payload;
-                    if (!payload || payload.type !== "token_count") continue;
-                    
-                    const rateLimits = payload.rate_limits ?? payload.info?.rate_limits;
-                    if (!rateLimits) continue;
-          
-                    const result = convertJsonlRateLimits(rateLimits, now);          if (result && (result.primary || result.secondary)) {
-            return result;
-          }
-        } catch {
-          continue;
-        }
-      }
-    }
-  }
-
-  return null;
-}
-
-// ---------------------------------------------------------------------------
-// HTTP API fallback
-// ---------------------------------------------------------------------------
 
 type AuthJson = {
   tokens?: {
@@ -291,22 +160,47 @@ type AuthJson = {
   account_id?: string;
 };
 
+async function readAuthJson(authPath: string): Promise<AuthJson> {
+  let raw: string;
+  try {
+    raw = await readFile(authPath, "utf8");
+  } catch (e: unknown) {
+    const code = (e as { code?: string } | null)?.code;
+    if (code === "ENOENT") {
+      throw new QuotaFetchError("no_credentials", `Codex auth.json not found at ${authPath}`, {
+        cause: e
+      });
+    }
+    throw new QuotaFetchError("api_error", `Failed to read Codex auth.json at ${authPath}`, { cause: e });
+  }
+
+  try {
+    return JSON.parse(raw) as AuthJson;
+  } catch (e) {
+    throw new QuotaFetchError("parse_error", `Failed to parse Codex auth.json at ${authPath}`, {
+      cause: e
+    });
+  }
+}
+
+function reasonFromHttpStatus(status: number): "auth_failed" | "endpoint_changed" | "api_error" {
+  if (status === 401 || status === 403) return "auth_failed";
+  if (status === 404 || status === 410) return "endpoint_changed";
+  return "api_error";
+}
+
 async function fetchCodexRateLimitsFromApi(
   codexHome: string,
   timeoutMs: number,
   timingSink?: (phase: string, durationMs: number) => void
-): Promise<RateLimitSnapshot | null> {
+): Promise<RateLimitSnapshot> {
   const authPath = join(codexHome, "auth.json");
-  let auth: AuthJson;
-  try {
-    const raw = await readFile(authPath, "utf8");
-    auth = JSON.parse(raw) as AuthJson;
-  } catch {
-    return null;
-  }
+  const auth = await readAuthJson(authPath);
 
   const accessToken = auth?.tokens?.access_token;
-  if (!accessToken) return null;
+  if (!accessToken) {
+    throw new QuotaFetchError("no_credentials", `Codex access_token missing in ${authPath}`);
+  }
 
   const accountId = auth?.tokens?.account_id ?? auth?.account_id;
   const headers: Record<string, string> = {
@@ -318,98 +212,93 @@ async function fetchCodexRateLimitsFromApi(
   }
 
   const controller = new AbortController();
-  const timer = setTimeout(() => {
-    controller.abort();
-  }, timeoutMs);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   const apiStart = Date.now();
+  let response: Response;
+  let bodyText = "";
   try {
-    const response = await fetch("https://chatgpt.com/backend-api/wham/usage", {
+    response = await fetch("https://chatgpt.com/backend-api/wham/usage", {
       method: "GET",
       headers,
       signal: controller.signal
     });
-
-    if (!response.ok) return null;
-
-    const data = (await response.json()) as Record<string, unknown>;
+    bodyText = await response.text();
+  } catch (e) {
+    if (e instanceof Error && e.name === "AbortError") {
+      throw new QuotaFetchError("timeout", "Codex usage request timed out.", { cause: e });
+    }
+    throw new QuotaFetchError("network_error", "Codex usage request failed.", { cause: e });
+  } finally {
+    clearTimeout(timer);
     if (timingSink) {
       timingSink("api", Date.now() - apiStart);
     }
-
-    const rateLimits = data["rate_limits"];
-    if (typeof rateLimits !== "object" || rateLimits === null) return null;
-
-    const now = new Date();
-    const nowSecs = Math.floor(now.getTime() / 1000);
-    const rl = rateLimits as Record<string, unknown>;
-
-    const convertApiWindow = (w: unknown): RateLimitWindow | null => {
-      if (typeof w !== "object" || w === null) return null;
-      const ww = w as Record<string, unknown>;
-      const usedPercent = ww["used_percent"];
-      if (typeof usedPercent !== "number") return null;
-      const limitWindowSeconds = ww["limit_window_seconds"];
-      const resetAfterSeconds = ww["reset_after_seconds"];
-      return {
-        used_percent: usedPercent,
-        windowDurationMins: typeof limitWindowSeconds === "number" ? limitWindowSeconds / 60 : null,
-        resetsAt: typeof resetAfterSeconds === "number" ? nowSecs + resetAfterSeconds : null
-      };
-    };
-
-    return {
-      primary: convertApiWindow(rl["primary"]),
-      secondary: convertApiWindow(rl["secondary"])
-    };
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
   }
+
+  if (!response.ok) {
+    const reason = reasonFromHttpStatus(response.status);
+    throw new QuotaFetchError(
+      reason,
+      `Codex usage request failed (${response.status} ${response.statusText}).`,
+      { httpStatus: response.status }
+    );
+  }
+
+  let data: unknown = null;
+  try {
+    data = bodyText.trim() ? JSON.parse(bodyText) : null;
+  } catch (e) {
+    throw new QuotaFetchError("parse_error", "Codex usage response was not valid JSON.", { cause: e });
+  }
+
+  if (!data || typeof data !== "object") {
+    throw new QuotaFetchError("parse_error", "Codex usage response missing JSON object.");
+  }
+
+  const record = data as Record<string, unknown>;
+  const rateLimits = record["rate_limits"];
+  if (!rateLimits || typeof rateLimits !== "object") {
+    throw new QuotaFetchError("parse_error", "Codex usage response missing rate_limits.");
+  }
+
+  const now = new Date();
+  const nowSecs = Math.floor(now.getTime() / 1000);
+  const rl = rateLimits as Record<string, unknown>;
+
+  const convertApiWindow = (w: unknown): RateLimitWindow | null => {
+    if (typeof w !== "object" || w === null) return null;
+    const ww = w as Record<string, unknown>;
+    const usedPercent = ww["used_percent"];
+    if (typeof usedPercent !== "number") return null;
+    const limitWindowSeconds = ww["limit_window_seconds"];
+    const resetAfterSeconds = ww["reset_after_seconds"];
+    return {
+      used_percent: usedPercent,
+      windowDurationMins: typeof limitWindowSeconds === "number" ? limitWindowSeconds / 60 : null,
+      resetsAt: typeof resetAfterSeconds === "number" ? nowSecs + resetAfterSeconds : null
+    };
+  };
+
+  const primary = convertApiWindow(rl["primary"]);
+  const secondary = convertApiWindow(rl["secondary"]);
+  if (!primary && !secondary) {
+    throw new QuotaFetchError("parse_error", "Codex usage response missing primary/secondary windows.");
+  }
+
+  return { primary, secondary };
 }
 
-// ---------------------------------------------------------------------------
-// Main export
-// ---------------------------------------------------------------------------
-
 /**
- * Fetches Codex (ChatGPT) rate limit data.
- * 
- * This function uses a prioritized strategy to find usage data:
- * 1. Reads the most recent JSONL session file from `~/.codex/sessions/`.
- *    This is the fastest method and handles both modern and legacy log formats.
- * 2. If no session data is found, it attempts to call the ChatGPT backend API 
- *    using the access token found in `~/.codex/auth.json`.
- * 
- * @param options - Configuration for file paths and timeouts
- * @returns A promise resolving to a RateLimitSnapshot or null if no source is available
+ * Fetches Codex (ChatGPT) rate limit data from the remote ChatGPT backend API.
+ *
+ * Reads credentials from `~/.codex/auth.json` and calls the `/backend-api/wham/usage` endpoint.
  */
 export async function fetchCodexRateLimits(
   options?: FetchCodexRateLimitsOptions
-): Promise<RateLimitSnapshot | null> {
-  const totalStart = Date.now();
+): Promise<RateLimitSnapshot> {
   const codexHome = resolveCodexHome(options?.codexHome);
   const timeoutSeconds = options?.timeoutSeconds ?? 20;
-  const timingSink = options?.timingSink;
-
-  const sessionsStart = Date.now();
-  const now = new Date();
-  const sessionResult = await readCodexRateLimitsFromSessions(codexHome, now);
-  if (timingSink) {
-    timingSink("sessions", Date.now() - sessionsStart);
-  }
-
-  if (sessionResult !== null) {
-    if (timingSink) {
-      timingSink("total", Date.now() - totalStart);
-    }
-    return sessionResult;
-  }
-
-  const apiResult = await fetchCodexRateLimitsFromApi(codexHome, timeoutSeconds * 1000, timingSink);
-  if (timingSink) {
-    timingSink("total", Date.now() - totalStart);
-  }
-  return apiResult;
+  return fetchCodexRateLimitsFromApi(codexHome, timeoutSeconds * 1000, options?.timingSink);
 }
+

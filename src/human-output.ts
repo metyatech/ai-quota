@@ -4,8 +4,7 @@ import type {
   GeminiUsage,
   RateLimitSnapshot,
   QuotaResult,
-  CopilotUsage,
-  AmazonQUsageSnapshot
+  CopilotUsage
 } from "./types.js";
 import type { SupportedAgent } from "./index.js";
 import { formatResetIn } from "./utils.js";
@@ -51,13 +50,14 @@ function deriveStatusFromUsedPercent(usedPercent: number): HumanStatus {
 }
 
 function deriveStatusFromResult(result: QuotaResult<unknown>, usedPercent: number | null): HumanStatus {
+  const loginReasons = new Set(["auth_failed", "no_credentials", "token_expired"]);
   if (result.status === "error") {
-    if (result.reason === "auth_failed" || result.reason === "no_credentials") return "LOGIN_REQUIRED";
+    if (result.reason && loginReasons.has(result.reason)) return "LOGIN_REQUIRED";
     return "FETCH_FAILED";
   }
 
   if (result.status === "no-data") {
-    if (result.reason === "no_credentials" || result.reason === "auth_failed") return "LOGIN_REQUIRED";
+    if (result.reason && loginReasons.has(result.reason)) return "LOGIN_REQUIRED";
     return "FETCH_FAILED";
   }
 
@@ -105,7 +105,13 @@ function buildClaudeRow(
   const limitingUsed = windows.length > 0 ? windows[0]!.usedPercent : null;
   const status = deriveStatusFromResult(result as unknown as QuotaResult<unknown>, limitingUsed);
 
-  if (status === "LOGIN_REQUIRED") return { status, limit: "-", details: "login required" };
+  if (status === "LOGIN_REQUIRED") {
+    return {
+      status,
+      limit: "-",
+      details: result.reason ? `login required (${result.reason})` : "login required"
+    };
+  }
   if (status === "FETCH_FAILED") {
     return {
       status,
@@ -139,7 +145,13 @@ function buildCodexRow(
   const limitingUsed = windows.length > 0 ? windows[0]!.usedPercent : null;
   const status = deriveStatusFromResult(result as unknown as QuotaResult<unknown>, limitingUsed);
 
-  if (status === "LOGIN_REQUIRED") return { status, limit: "-", details: "login required" };
+  if (status === "LOGIN_REQUIRED") {
+    return {
+      status,
+      limit: "-",
+      details: result.reason ? `login required (${result.reason})` : "login required"
+    };
+  }
   if (status === "FETCH_FAILED") {
     return {
       status,
@@ -161,7 +173,13 @@ function buildCopilotRow(
   const usedPercent = data ? clampPercent(Math.round(100 - data.percentRemaining)) : null;
   const status = deriveStatusFromResult(result as unknown as QuotaResult<unknown>, usedPercent);
 
-  if (status === "LOGIN_REQUIRED") return { status, limit: "-", details: "login required" };
+  if (status === "LOGIN_REQUIRED") {
+    return {
+      status,
+      limit: "-",
+      details: result.reason ? `login required (${result.reason})` : "login required"
+    };
+  }
   if (status === "FETCH_FAILED") {
     return {
       status,
@@ -175,40 +193,6 @@ function buildCopilotRow(
     status,
     limit: "-",
     details: `${usedPercent}% used (reset in ${formatResetIn(data.resetAt, now)})`
-  };
-}
-
-function buildAmazonQRow(
-  result: QuotaResult<AmazonQUsageSnapshot>,
-  now: Date
-): { status: HumanStatus; limit: HumanLimit; details: string } {
-  const data = result.data;
-  const usedPercent = data ? clampPercent(Math.round(100 - data.percentRemaining)) : null;
-  const status = deriveStatusFromResult(result as unknown as QuotaResult<unknown>, usedPercent);
-
-  if (status === "LOGIN_REQUIRED") return { status, limit: "-", details: "login required" };
-  if (status === "FETCH_FAILED") {
-    return {
-      status,
-      limit: "-",
-      details: result.reason ? `fetch failed (${result.reason})` : "fetch failed"
-    };
-  }
-
-  if (!data) return { status: "FETCH_FAILED", limit: "-", details: "no data" };
-
-  const safeLimit = data.limit > 0 ? data.limit : 0;
-  const safeUsed = data.used >= 0 ? data.used : 0;
-  const computedUsedPercent =
-    safeLimit > 0 ? clampPercent(Math.round((safeUsed / safeLimit) * 100)) : 0;
-
-  return {
-    status,
-    limit: "-",
-    details: `${safeUsed}/${safeLimit} requests used (${computedUsedPercent}% used, reset in ${formatResetIn(
-      data.resetAt,
-      now
-    )})`
   };
 }
 
@@ -228,7 +212,9 @@ function buildGeminiRows(
     const status = deriveStatusFromResult(result as unknown as QuotaResult<unknown>, null);
     const details =
       status === "LOGIN_REQUIRED"
-        ? "login required"
+        ? result.reason
+          ? `login required (${result.reason})`
+          : "login required"
         : result.reason
           ? `fetch failed (${result.reason})`
           : "fetch failed";
@@ -298,12 +284,6 @@ export function buildHumanRows(
     if (agent === "copilot") {
       const row = buildCopilotRow(allResults.copilot, now);
       rows.push({ agent: "copilot", ...row });
-      continue;
-    }
-
-    if (agent === "amazon-q") {
-      const row = buildAmazonQRow(allResults.amazonQ, now);
-      rows.push({ agent: "amazon-q", ...row });
       continue;
     }
   }

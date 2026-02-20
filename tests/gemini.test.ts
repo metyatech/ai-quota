@@ -21,23 +21,25 @@ describe("fetchGeminiRateLimits", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it("returns null when credentials file does not exist", async () => {
-    const result = await fetchGeminiRateLimits();
-    expect(result).toBeNull();
+  it("throws no_credentials when credentials file does not exist", async () => {
+    await expect(fetchGeminiRateLimits(1000)).rejects.toMatchObject({
+      name: "QuotaFetchError",
+      reason: "no_credentials"
+    });
   });
 
-  it("returns null when access token fetch fails", async () => {
-    // Write creds with expired token but no refresh_token
+  it("throws token_expired when access token is expired and no refresh token", async () => {
     fs.writeFileSync(
       credsPath,
       JSON.stringify({
         access_token: "",
         expiry_date: Date.now() - 1000
-        // no refresh_token
       })
     );
-    const result = await fetchGeminiRateLimits();
-    expect(result).toBeNull();
+    await expect(fetchGeminiRateLimits(1000)).rejects.toMatchObject({
+      name: "QuotaFetchError",
+      reason: "token_expired"
+    });
   });
 
   it("fetches and parses Gemini quota correctly", async () => {
@@ -74,42 +76,43 @@ describe("fetchGeminiRateLimits", () => {
         .fn()
         .mockResolvedValueOnce({
           ok: true,
-          text: async () => "",
-          json: async () => loadCodeAssistResponse
+          status: 200,
+          statusText: "OK",
+          text: async () => JSON.stringify(loadCodeAssistResponse)
         })
         .mockResolvedValueOnce({
           ok: true,
-          text: async () => "",
-          json: async () => retrieveUserQuotaResponse
+          status: 200,
+          statusText: "OK",
+          text: async () => JSON.stringify(retrieveUserQuotaResponse)
         })
     );
 
-    const result = await fetchGeminiRateLimits();
-    expect(result).not.toBeNull();
-    expect(result?.["gemini-3-pro-preview"]).toBeDefined();
-    expect(result?.["gemini-3-flash-preview"]).toBeDefined();
-    // 1 - 0.7 = 0.3 used; 0.3 * 100 = 30
-    expect(result?.["gemini-3-pro-preview"]?.usage).toBeCloseTo(30, 5);
-    expect(result?.["gemini-3-flash-preview"]?.usage).toBeCloseTo(10, 5);
+    const result = await fetchGeminiRateLimits(1000);
+    expect(result["gemini-3-pro-preview"]).toBeDefined();
+    expect(result["gemini-3-flash-preview"]).toBeDefined();
+    expect(result["gemini-3-pro-preview"]?.usage).toBeCloseTo(30, 5);
+    expect(result["gemini-3-flash-preview"]?.usage).toBeCloseTo(10, 5);
   });
 
-  it("returns null when loadCodeAssist fails", async () => {
+  it("throws auth_failed when loadCodeAssist fails with 403", async () => {
     const futureExpiry = Date.now() + 3600_000;
-    fs.writeFileSync(
-      credsPath,
-      JSON.stringify({ access_token: "ya29.valid-token", expiry_date: futureExpiry })
-    );
+    fs.writeFileSync(credsPath, JSON.stringify({ access_token: "ya29.valid-token", expiry_date: futureExpiry }));
 
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValueOnce({
         ok: false,
         status: 403,
+        statusText: "Forbidden",
         text: async () => "Forbidden"
       })
     );
 
-    const result = await fetchGeminiRateLimits();
-    expect(result).toBeNull();
+    await expect(fetchGeminiRateLimits(1000)).rejects.toMatchObject({
+      name: "QuotaFetchError",
+      reason: "auth_failed"
+    });
   });
 });
+

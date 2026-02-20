@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-02-20
+
+### Removed
+
+- **Amazon Q:** Removed `amazon-q` support and the `record` CLI subcommand. Amazon Q usage/quota is not available via a remote API, and returning local counters was disallowed.
+
+### Changed
+
+- **Remote-only quota sources:** All quota values are now sourced from remote APIs only (no local logs/counters).
+- **Codex:** Removed JSONL session log parsing and now uses the ChatGPT backend endpoint only.
+- **CLI JSON output:** `--json` now emits per-agent objects with `{ status, reason, error, data, display }`.
+
+### Fixed
+
+- **Diagnostics:** Standardized `no-data` and `error` reasons across providers (e.g., `no_credentials`, `token_expired`, `endpoint_changed`, `parse_error`).
+
 ## [0.5.3] - 2026-02-19
 
 ### Added

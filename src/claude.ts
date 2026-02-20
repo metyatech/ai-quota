@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { ClaudeUsageData } from "./types.js";
+import { QuotaFetchError } from "./errors.js";
 
 export type { ClaudeUsageData, ClaudeUsageBucket } from "./types.js";
 
@@ -12,9 +13,18 @@ function getClaudeConfigDir(): string {
 function readClaudeCredentials(): { accessToken: string; expiresAt: number } | null {
   const credsPath = path.join(getClaudeConfigDir(), ".credentials.json");
   try {
-    if (!fs.existsSync(credsPath)) return null;
+    if (!fs.existsSync(credsPath)) {
+      throw new QuotaFetchError("no_credentials", `Claude credentials not found at ${credsPath}`);
+    }
     const raw = fs.readFileSync(credsPath, "utf8");
-    const parsed = JSON.parse(raw) as unknown;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw) as unknown;
+    } catch (e) {
+      throw new QuotaFetchError("parse_error", `Failed to parse Claude credentials at ${credsPath}`, {
+        cause: e
+      });
+    }
     if (!parsed || typeof parsed !== "object") return null;
     const record = parsed as Record<string, unknown>;
     const oauth = record.claudeAiOauth;
@@ -30,8 +40,9 @@ function readClaudeCredentials(): { accessToken: string; expiresAt: number } | n
         : null;
     if (!accessToken || expiresAt === null) return null;
     return { accessToken, expiresAt };
-  } catch {
-    return null;
+  } catch (e) {
+    if (e instanceof QuotaFetchError) throw e;
+    throw new QuotaFetchError("api_error", "Failed to read Claude credentials.", { cause: e });
   }
 }
 
@@ -47,13 +58,17 @@ function readClaudeCredentials(): { accessToken: string; expiresAt: number } | n
  */
 export async function fetchClaudeRateLimits(
   timeoutMs: number = 5000
-): Promise<ClaudeUsageData | null> {
+): Promise<ClaudeUsageData> {
   try {
     const creds = readClaudeCredentials();
-    if (!creds) return null;
+    if (!creds) {
+      throw new QuotaFetchError("no_credentials", "Claude credentials missing.");
+    }
 
     // Check token expiry with 5-minute buffer
-    if (Date.now() + 300_000 >= creds.expiresAt) return null;
+    if (Date.now() + 300_000 >= creds.expiresAt) {
+      throw new QuotaFetchError("token_expired", "Claude access token is expired.");
+    }
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -69,14 +84,29 @@ export async function fetchClaudeRateLimits(
         },
         signal: controller.signal
       });
+    } catch (e) {
+      if (e instanceof Error && e.name === "AbortError") {
+        throw new QuotaFetchError("timeout", "Claude usage request timed out.", { cause: e });
+      }
+      throw new QuotaFetchError("network_error", "Claude usage request failed.", { cause: e });
     } finally {
       clearTimeout(timer);
     }
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const reason =
+        res.status === 401 || res.status === 403 ? "auth_failed" : "api_error";
+      throw new QuotaFetchError(
+        reason,
+        `Claude usage request failed (${res.status} ${res.statusText}).`,
+        { httpStatus: res.status }
+      );
+    }
 
     const data = (await res.json()) as unknown;
-    if (!data || typeof data !== "object") return null;
+    if (!data || typeof data !== "object") {
+      throw new QuotaFetchError("parse_error", "Claude usage response was not a JSON object.");
+    }
     const record = data as Record<string, unknown>;
 
     const parseBucket = (val: unknown) => {
@@ -104,13 +134,15 @@ export async function fetchClaudeRateLimits(
       return { is_enabled, monthly_limit, used_credits, utilization };
     };
 
-    return {
+    const out: ClaudeUsageData = {
       five_hour: parseBucket(record.five_hour),
       seven_day: parseBucket(record.seven_day),
       seven_day_sonnet: parseBucket(record.seven_day_sonnet),
       extra_usage: parseExtraUsage(record.extra_usage)
     };
-  } catch {
-    return null;
+    return out;
+  } catch (e) {
+    if (e instanceof QuotaFetchError) throw e;
+    throw new QuotaFetchError("unknown", "Claude usage fetch failed.", { cause: e });
   }
 }

@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { execSync } from "node:child_process";
 import type { CopilotUsage } from "./types.js";
+import { QuotaFetchError } from "./errors.js";
 
 export type { CopilotUsage } from "./types.js";
 
@@ -216,8 +217,16 @@ export async function fetchCopilotRateLimits(
 
     const bodyText = await response.text();
     if (!response.ok) {
-      throw new Error(
-        `Copilot user info request failed (${response.status} ${response.statusText}).`
+      const reason =
+        response.status === 401 || response.status === 403
+          ? "auth_failed"
+          : response.status === 404 || response.status === 410
+            ? "endpoint_changed"
+            : "api_error";
+      throw new QuotaFetchError(
+        reason,
+        `Copilot user info request failed (${response.status} ${response.statusText}).`,
+        { httpStatus: response.status }
       );
     }
 
@@ -231,12 +240,17 @@ export async function fetchCopilotRateLimits(
     }
 
     const usage = parseCopilotUserInfo(parsed, now);
-    return usage ?? headerUsage;
-  } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") {
-      throw new Error("Copilot user info request timed out.");
+    const out = usage ?? headerUsage;
+    if (!out) {
+      throw new QuotaFetchError("parse_error", "Copilot API response missing quota fields.");
     }
-    throw error;
+    return out;
+  } catch (error) {
+    if (error instanceof QuotaFetchError) throw error;
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new QuotaFetchError("timeout", "Copilot user info request timed out.", { cause: error });
+    }
+    throw new QuotaFetchError("network_error", "Copilot user info request failed.", { cause: error });
   } finally {
     clearTimeout(timeout);
   }

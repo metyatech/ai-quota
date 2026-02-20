@@ -23,13 +23,15 @@ describe("fetchClaudeRateLimits", () => {
     delete process.env.HOME;
   });
 
-  it("returns null when credentials file does not exist", async () => {
+  it("throws no_credentials when credentials file does not exist", async () => {
     fs.rmSync(credentialsPath, { force: true });
-    const result = await fetchClaudeRateLimits();
-    expect(result).toBeNull();
+    await expect(fetchClaudeRateLimits()).rejects.toMatchObject({
+      name: "QuotaFetchError",
+      reason: "no_credentials"
+    });
   });
 
-  it("returns null when token is expired (expiresAt in the past)", async () => {
+  it("throws token_expired when token is expired (expiresAt in the past)", async () => {
     const expiredAt = Date.now() - 1000;
     fs.writeFileSync(
       credentialsPath,
@@ -40,11 +42,13 @@ describe("fetchClaudeRateLimits", () => {
         }
       })
     );
-    const result = await fetchClaudeRateLimits();
-    expect(result).toBeNull();
+    await expect(fetchClaudeRateLimits()).rejects.toMatchObject({
+      name: "QuotaFetchError",
+      reason: "token_expired"
+    });
   });
 
-  it("returns null when token expires within the 5-minute buffer", async () => {
+  it("throws token_expired when token expires within the 5-minute buffer", async () => {
     const expiresAt = Date.now() + 60_000; // 1 minute from now
     fs.writeFileSync(
       credentialsPath,
@@ -55,33 +59,26 @@ describe("fetchClaudeRateLimits", () => {
         }
       })
     );
-    const result = await fetchClaudeRateLimits();
-    expect(result).toBeNull();
+    await expect(fetchClaudeRateLimits()).rejects.toMatchObject({
+      name: "QuotaFetchError",
+      reason: "token_expired"
+    });
   });
 
-  it("returns null when credentials JSON is malformed", async () => {
+  it("throws parse_error when credentials JSON is malformed", async () => {
     fs.writeFileSync(credentialsPath, "not-json");
-    const result = await fetchClaudeRateLimits();
-    expect(result).toBeNull();
+    await expect(fetchClaudeRateLimits()).rejects.toMatchObject({
+      name: "QuotaFetchError",
+      reason: "parse_error"
+    });
   });
 
-  it("returns null when claudeAiOauth field is missing", async () => {
+  it("throws no_credentials when claudeAiOauth field is missing", async () => {
     fs.writeFileSync(credentialsPath, JSON.stringify({ other: "data" }));
-    const result = await fetchClaudeRateLimits();
-    expect(result).toBeNull();
-  });
-
-  it("returns null when accessToken is missing", async () => {
-    fs.writeFileSync(
-      credentialsPath,
-      JSON.stringify({
-        claudeAiOauth: {
-          expiresAt: Date.now() + 3600_000
-        }
-      })
-    );
-    const result = await fetchClaudeRateLimits();
-    expect(result).toBeNull();
+    await expect(fetchClaudeRateLimits()).rejects.toMatchObject({
+      name: "QuotaFetchError",
+      reason: "no_credentials"
+    });
   });
 
   it("fetches usage and parses response correctly", async () => {
@@ -107,19 +104,20 @@ describe("fetchClaudeRateLimits", () => {
       "fetch",
       vi.fn().mockResolvedValueOnce({
         ok: true,
+        status: 200,
+        statusText: "OK",
         json: async () => mockResponse
       })
     );
 
     const result = await fetchClaudeRateLimits();
-    expect(result).not.toBeNull();
-    expect(result?.five_hour?.utilization).toBe(40);
-    expect(result?.seven_day?.utilization).toBe(20);
-    expect(result?.seven_day_sonnet?.utilization).toBe(15);
-    expect(result?.extra_usage?.is_enabled).toBe(false);
+    expect(result.five_hour?.utilization).toBe(40);
+    expect(result.seven_day?.utilization).toBe(20);
+    expect(result.seven_day_sonnet?.utilization).toBe(15);
+    expect(result.extra_usage?.is_enabled).toBe(false);
   });
 
-  it("returns null when the API response is not ok", async () => {
+  it("throws auth_failed when the API response is 401/403", async () => {
     const expiresAt = Date.now() + 3600_000;
     fs.writeFileSync(
       credentialsPath,
@@ -128,9 +126,20 @@ describe("fetchClaudeRateLimits", () => {
       })
     );
 
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce({ ok: false, status: 401 }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        statusText: "Unauthorized",
+        json: async () => ({})
+      })
+    );
 
-    const result = await fetchClaudeRateLimits();
-    expect(result).toBeNull();
+    await expect(fetchClaudeRateLimits()).rejects.toMatchObject({
+      name: "QuotaFetchError",
+      reason: "auth_failed"
+    });
   });
 });
+

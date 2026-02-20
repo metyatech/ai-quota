@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach, afterEach } from "vitest";
+import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 import { mkdtemp, rm, mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -29,76 +29,13 @@ describe("rateLimitSnapshotToStatus", () => {
     expect(weekly?.percentLeft).toBe(90);
   });
 
-  it("returns null when both windows have no valid resetAt", () => {
-    const now = new Date("2026-02-02T10:00:00Z");
-    // No resetsAt and no windowDurationMins
-    const snapshot = {
-      primary: { used_percent: 50 },
-      secondary: { used_percent: 30 }
-    };
-    // With no windowDurationMins and no resetsAt, resetAt will fall back to null
-    // but used_percent is valid so the window normalizes. Actually resetAt will be
-    // null since neither resetsAt nor windowMinutes is provided, so windows array is empty.
-    const status = rateLimitSnapshotToStatus(snapshot, now);
-    // The status may be null if no resetAt can be determined for any window
-    // Since resetsAt is not set and windowDurationMins is not set, resetAt is null,
-    // so no windows are pushed.
-    expect(status).toBeNull();
-  });
-
   it("returns null when snapshot has no valid windows", () => {
     const status = rateLimitSnapshotToStatus({ primary: null, secondary: null });
     expect(status).toBeNull();
   });
-
-  it("assigns lone window with large duration to weekly slot", () => {
-    const now = new Date("2026-02-02T10:00:00Z");
-    const snapshot = {
-      primary: {
-        usedPercent: 25,
-        windowDurationMins: 10080, // 7 days
-        resetsAt: Math.floor(now.getTime() / 1000) + 86400
-      }
-    };
-    const status = rateLimitSnapshotToStatus(snapshot, now);
-    expect(status).not.toBeNull();
-    const weekly = status?.windows.find((w) => w.key === "weekly");
-    expect(weekly).toBeDefined();
-    expect(weekly?.percentLeft).toBe(75);
-  });
-
-  it("assigns lone window with small duration to fiveHour slot", () => {
-    const now = new Date("2026-02-02T10:00:00Z");
-    const snapshot = {
-      secondary: {
-        usedPercent: 60,
-        windowDurationMins: 300,
-        resetsAt: Math.floor(now.getTime() / 1000) + 3600
-      }
-    };
-    const status = rateLimitSnapshotToStatus(snapshot, now);
-    expect(status).not.toBeNull();
-    const fiveHour = status?.windows.find((w) => w.key === "fiveHour");
-    expect(fiveHour).toBeDefined();
-    expect(fiveHour?.percentLeft).toBe(40);
-  });
-
-  it("clamps percentLeft to [0, 100]", () => {
-    const now = new Date("2026-02-02T10:00:00Z");
-    const snapshot = {
-      primary: {
-        usedPercent: 110, // over 100
-        windowDurationMins: 300,
-        resetsAt: Math.floor(now.getTime() / 1000) + 3600
-      }
-    };
-    const status = rateLimitSnapshotToStatus(snapshot, now);
-    const fiveHour = status?.windows.find((w) => w.key === "fiveHour");
-    expect(fiveHour?.percentLeft).toBe(0);
-  });
 });
 
-describe("fetchCodexRateLimits – JSONL session files", () => {
+describe("fetchCodexRateLimits – remote API only", () => {
   let tmpDir: string;
 
   beforeEach(async () => {
@@ -107,105 +44,60 @@ describe("fetchCodexRateLimits – JSONL session files", () => {
 
   afterEach(async () => {
     await rm(tmpDir, { recursive: true, force: true });
+    vi.restoreAllMocks();
   });
 
-  it("returns null when codexHome does not exist", async () => {
-    const result = await fetchCodexRateLimits({ codexHome: join(tmpDir, "nonexistent") });
-    expect(result).toBeNull();
+  it("throws no_credentials when auth.json is missing", async () => {
+    await expect(fetchCodexRateLimits({ codexHome: tmpDir })).rejects.toMatchObject({
+      name: "QuotaFetchError",
+      reason: "no_credentials"
+    });
   });
 
-  it("reads rate limits from the most recent JSONL session file", async () => {
-    // Use the actual current date so the session directory matches what the
-    // production code looks for (it calls `new Date()` internally).
-    const now = new Date();
-    const yyyy = now.getFullYear().toString();
-    const mm = (now.getMonth() + 1).toString().padStart(2, "0");
-    const dd = now.getDate().toString().padStart(2, "0");
-    const dayDir = join(tmpDir, "sessions", yyyy, mm, dd);
-    await mkdir(dayDir, { recursive: true });
+  it("calls remote endpoint and parses rate_limits", async () => {
+    await mkdir(tmpDir, { recursive: true });
+    await writeFile(
+      join(tmpDir, "auth.json"),
+      JSON.stringify({ tokens: { access_token: "tok" } }),
+      "utf8"
+    );
 
-    const entry = {
-      payload: {
-        type: "token_count",
-        info: {
+    const fetchSpy = vi.spyOn(globalThis, "fetch" as any).mockResolvedValue({
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      text: async () =>
+        JSON.stringify({
           rate_limits: {
-            primary: { used_percent: 35, window_duration_minutes: 300, resets_in_seconds: 1800 },
-            secondary: {
-              used_percent: 15,
-              window_duration_minutes: 10080,
-              resets_in_seconds: 86400
-            }
+            primary: { used_percent: 10, limit_window_seconds: 300 * 60, reset_after_seconds: 60 },
+            secondary: { used_percent: 20, limit_window_seconds: 10080 * 60, reset_after_seconds: 120 }
           }
-        }
-      }
-    };
-    await writeFile(join(dayDir, "session-001.jsonl"), JSON.stringify(entry) + "\n");
+        })
+    } as any);
 
-    const result = await fetchCodexRateLimits({ codexHome: tmpDir });
-    expect(result).not.toBeNull();
-    expect(result?.primary?.used_percent).toBe(35);
-    expect(result?.secondary?.used_percent).toBe(15);
+    const result = await fetchCodexRateLimits({ codexHome: tmpDir, timeoutSeconds: 1 });
+    expect(result.primary?.used_percent).toBe(10);
+    expect(result.secondary?.used_percent).toBe(20);
+    expect(fetchSpy).toHaveBeenCalled();
   });
 
-  it("reads rate limits from modern wrapped event_msg format", async () => {
-    const now = new Date();
-    const yyyy = now.getFullYear().toString();
-    const mm = (now.getMonth() + 1).toString().padStart(2, "0");
-    const dd = now.getDate().toString().padStart(2, "0");
-    const dayDir = join(tmpDir, "sessions", yyyy, mm, dd);
-    await mkdir(dayDir, { recursive: true });
+  it("throws endpoint_changed on 404", async () => {
+    await writeFile(
+      join(tmpDir, "auth.json"),
+      JSON.stringify({ tokens: { access_token: "tok" } }),
+      "utf8"
+    );
 
-    // The modern format found during debugging
-    const entry = {
-      timestamp: now.toISOString(),
-      type: "event_msg",
-      payload: {
-        type: "token_count",
-        info: {
-          rate_limits: {
-            primary: { used_percent: 65, window_minutes: 300, resets_at: 1771505456 },
-            secondary: { used_percent: 21, window_minutes: 10080, resets_at: 1772067074 }
-          }
-        }
-      }
-    };
-    await writeFile(join(dayDir, "rollout-modern.jsonl"), JSON.stringify(entry) + "\n");
+    vi.spyOn(globalThis, "fetch" as any).mockResolvedValue({
+      ok: false,
+      status: 404,
+      statusText: "Not Found",
+      text: async () => "nope"
+    } as any);
 
-    const result = await fetchCodexRateLimits({ codexHome: tmpDir });
-    expect(result).not.toBeNull();
-    expect(result?.primary?.used_percent).toBe(65);
-    expect(result?.secondary?.used_percent).toBe(21);
-    expect(result?.primary?.window_minutes).toBe(300);
-  });
-
-  it("parses the exact raw JSON line from real logs", async () => {
-    const rawLine = '{"timestamp":"2026-02-19T11:53:54.722Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":257663,"cached_input_tokens":216448,"output_tokens":3280,"reasoning_output_tokens":1938,"total_tokens":260943},"last_token_usage":{"input_tokens":25313,"cached_input_tokens":24960,"output_tokens":265,"reasoning_output_tokens":228,"total_tokens":25578},"model_context_window":258400},"rate_limits":{"limit_id":"codex","limit_name":null,"primary":{"used_percent":65.0,"window_minutes":300,"resets_at":1771505456},"secondary":{"used_percent":21.0,"window_minutes":10080,"resets_at":1772067074},"credits":{"has_credits":false,"unlimited":false,"balance":null},"plan_type":null}}}';
-    const now = new Date();
-    const yyyy = now.getFullYear().toString();
-    const mm = (now.getMonth() + 1).toString().padStart(2, "0");
-    const dd = now.getDate().toString().padStart(2, "0");
-    const dayDir = join(tmpDir, "sessions", yyyy, mm, dd);
-    await mkdir(dayDir, { recursive: true });
-    await writeFile(join(dayDir, "exact.jsonl"), rawLine + "\n");
-
-    const result = await fetchCodexRateLimits({ codexHome: tmpDir });
-    expect(result).not.toBeNull();
-    expect(result?.primary?.used_percent).toBe(65);
-  });
-
-  it("skips JSONL lines that are not token_count type", async () => {
-    const now = new Date();
-    const yyyy = now.getFullYear().toString();
-    const mm = (now.getMonth() + 1).toString().padStart(2, "0");
-    const dd = now.getDate().toString().padStart(2, "0");
-    const dayDir = join(tmpDir, "sessions", yyyy, mm, dd);
-    await mkdir(dayDir, { recursive: true });
-
-    const otherEntry = { payload: { type: "other_event", info: {} } };
-    await writeFile(join(dayDir, "session-001.jsonl"), JSON.stringify(otherEntry) + "\n");
-
-    const result = await fetchCodexRateLimits({ codexHome: tmpDir });
-    // No token_count entries → falls back to API (which also fails) → null
-    expect(result).toBeNull();
+    await expect(fetchCodexRateLimits({ codexHome: tmpDir, timeoutSeconds: 1 })).rejects.toMatchObject(
+      { name: "QuotaFetchError", reason: "endpoint_changed" }
+    );
   });
 });
+

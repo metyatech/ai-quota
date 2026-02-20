@@ -46,7 +46,7 @@ async function getQuotaMarkdown(agent?: string): Promise<string> {
     markdown = `### Current AI Agent Quotas\n**Status: ${all.summary.status.toUpperCase()}** - ${all.summary.message}\n\n| Agent | Status | Usage/Limit |\n| :--- | :--- | :--- |\n`;
     markdown += (Object.entries(all) as [keyof AllRateLimits, AllRateLimits[keyof AllRateLimits]][])
       .filter(([k]) => k !== "summary")
-      .map(([k, v]) => `| ${k === "amazonQ" ? "amazon-q" : k} | ${(v as any).status} | ${(v as any).display} |`)
+      .map(([k, v]) => `| ${k} | ${(v as any).status} | ${(v as any).display} |`)
       .join("\n");
   }
   return markdown;

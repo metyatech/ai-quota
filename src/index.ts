@@ -1,26 +1,20 @@
 /**
  * @metyatech/ai-quota
  *
- * Quota / rate-limit fetching SDK for Claude, Gemini, Copilot, Amazon Q, and Codex.
+ * Quota / rate-limit fetching SDK for Claude, Gemini, Copilot, and Codex.
  */
 
-import os from "node:os";
 import { fetchClaudeRateLimits } from "./claude.js";
 import { fetchGeminiRateLimits } from "./gemini.js";
 import { fetchCopilotRateLimits, getCopilotToken } from "./copilot.js";
-import {
-  fetchAmazonQRateLimits,
-  resolveAmazonQUsageStatePath,
-  DEFAULT_AMAZON_Q_MONTHLY_LIMIT
-} from "./amazon-q.js";
 import { fetchCodexRateLimits, rateLimitSnapshotToStatus } from "./codex.js";
 import { formatResetIn } from "./utils.js";
+import { isQuotaFetchError } from "./errors.js";
 import type {
   AllRateLimits,
   ClaudeUsageData,
   GeminiUsage,
   CopilotUsage,
-  AmazonQUsageSnapshot,
   RateLimitSnapshot,
   QuotaResult,
   AgentStatus,
@@ -35,7 +29,7 @@ import type {
 /**
  * List of AI agent identifiers supported by this SDK.
  */
-export const SUPPORTED_AGENTS = ["claude", "gemini", "copilot", "amazon-q", "codex"] as const;
+export const SUPPORTED_AGENTS = ["claude", "gemini", "copilot", "codex"] as const;
 
 /**
  * Type representing supported agent identifiers.
@@ -46,7 +40,6 @@ const AGENT_TO_SDK_KEY: Record<SupportedAgent, keyof Omit<AllRateLimits, "summar
   claude: "claude",
   gemini: "gemini",
   copilot: "copilot",
-  "amazon-q": "amazonQ",
   codex: "codex"
 };
 
@@ -77,14 +70,6 @@ export {
 } from "./copilot.js";
 export type { FetchCopilotRateLimitsOptions } from "./copilot.js";
 export {
-  fetchAmazonQRateLimits,
-  recordAmazonQUsage,
-  loadAmazonQUsageState,
-  saveAmazonQUsageState,
-  resolveAmazonQUsageStatePath,
-  DEFAULT_AMAZON_Q_MONTHLY_LIMIT
-} from "./amazon-q.js";
-export {
   fetchCodexRateLimits,
   rateLimitSnapshotToStatus
 } from "./codex.js";
@@ -108,12 +93,17 @@ const DEFAULT_SKIPPED_RESULT: QuotaResult<null> = {
 };
 
 function classifyError(e: unknown): { reason: ErrorReason; message: string } {
+  if (isQuotaFetchError(e)) {
+    return { reason: e.reason, message: e.message };
+  }
   const msg = e instanceof Error ? e.message : String(e);
   let reason: ErrorReason = "unknown";
 
   if (msg.includes("credentials not found") || msg.includes("no credentials")) {
     reason = "no_credentials";
-  } else if (msg.includes("expired") || msg.includes("401") || msg.includes("403") || msg.includes("Forbidden")) {
+  } else if (msg.includes("expired")) {
+    reason = "token_expired";
+  } else if (msg.includes("401") || msg.includes("403") || msg.includes("Forbidden")) {
     reason = "auth_failed";
   } else if (msg.includes("timeout") || msg.includes("AbortError")) {
     reason = "timeout";
@@ -124,6 +114,16 @@ function classifyError(e: unknown): { reason: ErrorReason; message: string } {
   }
 
   return { reason, message: msg };
+}
+
+function statusForReason(reason: ErrorReason): AgentStatus {
+  if (reason === "no_credentials" || reason === "token_expired") return "no-data";
+  return "error";
+}
+
+function displayForFailure(status: AgentStatus, reason: ErrorReason, message: string | null): string {
+  if (status === "no-data") return `no data (${reason})`;
+  return message ? `error (${reason}): ${message}` : `error (${reason})`;
 }
 
 /**
@@ -148,7 +148,7 @@ export async function fetchAllRateLimits(options?: {
     claude: async () => {
       try {
         const data = await fetchClaudeRateLimits(timeout * 1000);
-        if (!data) return { status: "no-data", data: null, reason: "no_credentials", error: null, display: "no data" };
+        if (!data) return { status: "no-data", data: null, reason: "unknown", error: null, display: "no data (unknown)" };
         const buckets: string[] = [];
         if (data.five_hour) {
           const resetIn = formatResetIn(new Date(data.five_hour.resets_at));
@@ -161,13 +161,21 @@ export async function fetchAllRateLimits(options?: {
         return { status: "ok", data, reason: null, error: null, display: buckets.join(", ") || "no data" };
       } catch (e) {
         const { reason, message } = classifyError(e);
-        return { status: "error", data: null, reason, error: message, rawError: e, display: `error: ${reason}` };
+        const status = statusForReason(reason);
+        return {
+          status,
+          data: null,
+          reason,
+          error: status === "error" ? message : null,
+          rawError: e,
+          display: displayForFailure(status, reason, status === "error" ? message : null)
+        };
       }
     },
     gemini: async () => {
       try {
-        const data = await fetchGeminiRateLimits();
-        if (!data) return { status: "no-data", data: null, reason: "no_credentials", error: null, display: "no data" };
+        const data = await fetchGeminiRateLimits(timeout * 1000);
+        if (!data) return { status: "no-data", data: null, reason: "unknown", error: null, display: "no data (unknown)" };
         const models: string[] = [];
         const seen = new Set<string>();
         for (const [modelId, usage] of Object.entries(data)) {
@@ -181,59 +189,59 @@ export async function fetchAllRateLimits(options?: {
         return { status: "ok", data, reason: null, error: null, display: models.join(", ") || "no data" };
       } catch (e) {
         const { reason, message } = classifyError(e);
-        return { status: "error", data: null, reason, error: message, rawError: e, display: `error: ${reason}` };
+        const status = statusForReason(reason);
+        return {
+          status,
+          data: null,
+          reason,
+          error: status === "error" ? message : null,
+          rawError: e,
+          display: displayForFailure(status, reason, status === "error" ? message : null)
+        };
       }
     },
     copilot: async () => {
       try {
         const token = getCopilotToken(verbose);
-        if (!token) return { status: "no-data", data: null, reason: "no_credentials", error: null, display: "auth required" };
+        if (!token) return { status: "no-data", data: null, reason: "no_credentials", error: null, display: "no data (no_credentials)" };
         const data = await fetchCopilotRateLimits({ token, timeoutSeconds: timeout });
-        if (!data) return { status: "no-data", data: null, reason: "api_error", error: null, display: "no data" };
+        if (!data) return { status: "error", data: null, reason: "parse_error", error: "Copilot API response missing quota fields.", display: "error (parse_error)" };
         const usedPercent = Math.round(100 - data.percentRemaining);
         return { status: "ok", data, reason: null, error: null, display: `${usedPercent}% used (resets in ${formatResetIn(data.resetAt)})` };
       } catch (e) {
         const { reason, message } = classifyError(e);
-        return { status: "error", data: null, reason, error: message, rawError: e, display: `error: ${reason}` };
-      }
-    },
-    "amazon-q": async () => {
-      try {
-        const envPath = process.env.AMAZON_Q_STATE_PATH;
-        const statePath = envPath ? envPath : resolveAmazonQUsageStatePath(os.homedir());
-        
-        const envLimit = process.env.AMAZON_Q_MONTHLY_LIMIT;
-        const limit = envLimit ? parseInt(envLimit, 10) : DEFAULT_AMAZON_Q_MONTHLY_LIMIT;
-        const finalLimit = isNaN(limit) ? DEFAULT_AMAZON_Q_MONTHLY_LIMIT : limit;
-
-        const data = fetchAmazonQRateLimits(statePath, finalLimit);
-        const usedPercent =
-          data.limit <= 0 ? 0 : Math.min(100, Math.max(0, Math.round((data.used / data.limit) * 100)));
+        const status = statusForReason(reason);
         return {
-          status: "ok",
-          data,
-          reason: null,
-          error: null,
-          display: `${data.used}/${data.limit} requests used (${usedPercent}% used, resets in ${formatResetIn(data.resetAt)})`
+          status,
+          data: null,
+          reason,
+          error: status === "error" ? message : null,
+          rawError: e,
+          display: displayForFailure(status, reason, status === "error" ? message : null)
         };
-      } catch (e) {
-        const { reason, message } = classifyError(e);
-        return { status: "error", data: null, reason, error: message, rawError: e, display: `error: ${reason}` };
       }
     },
     codex: async () => {
       try {
         const data = await fetchCodexRateLimits({ timeoutSeconds: timeout });
-        if (!data) return { status: "no-data", data: null, reason: "no_credentials", error: null, display: "no data" };
+        if (!data) return { status: "no-data", data: null, reason: "unknown", error: null, display: "no data (unknown)" };
         const status = rateLimitSnapshotToStatus(data);
-        if (!status || status.windows.length === 0) return { status: "no-data", data, reason: "api_error", error: null, display: "no data" };
+        if (!status || status.windows.length === 0) return { status: "error", data, reason: "parse_error", error: "Codex usage windows missing.", display: "error (parse_error)" };
         const disp = status.windows
           .map((w) => `${w.label}: ${Math.round(100 - w.percentLeft)}% used (resets in ${formatResetIn(w.resetAt)})`)
           .join(", ");
         return { status: "ok", data, reason: null, error: null, display: disp };
       } catch (e) {
         const { reason, message } = classifyError(e);
-        return { status: "error", data: null, reason, error: message, rawError: e, display: `error: ${reason}` };
+        const status = statusForReason(reason);
+        return {
+          status,
+          data: null,
+          reason,
+          error: status === "error" ? message : null,
+          rawError: e,
+          display: displayForFailure(status, reason, status === "error" ? message : null)
+        };
       }
     }
   };
@@ -243,7 +251,6 @@ export async function fetchAllRateLimits(options?: {
     claude: DEFAULT_SKIPPED_RESULT as unknown as QuotaResult<ClaudeUsageData>,
     gemini: DEFAULT_SKIPPED_RESULT as unknown as QuotaResult<GeminiUsage>,
     copilot: DEFAULT_SKIPPED_RESULT as unknown as QuotaResult<CopilotUsage>,
-    amazonQ: DEFAULT_SKIPPED_RESULT as unknown as QuotaResult<AmazonQUsageSnapshot>,
     codex: DEFAULT_SKIPPED_RESULT as unknown as QuotaResult<RateLimitSnapshot>
   };
 

@@ -8,7 +8,6 @@ function makeEmptyResults(): AllRateLimits {
     claude: { status: "no-data", data: null, reason: "no_credentials", error: null, display: "no data" },
     gemini: { status: "no-data", data: null, reason: "no_credentials", error: null, display: "no data" },
     copilot: { status: "no-data", data: null, reason: "no_credentials", error: null, display: "no data" },
-    amazonQ: { status: "no-data", data: null, reason: "no_credentials", error: null, display: "no data" },
     codex: { status: "no-data", data: null, reason: "no_credentials", error: null, display: "no data" }
   };
 }
@@ -55,4 +54,3 @@ describe("human output", () => {
     expect(table).toContain("WAIT_RESET");
   });
 });
-

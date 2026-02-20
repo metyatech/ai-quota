@@ -1,6 +1,6 @@
 # @metyatech/ai-quota
 
-AI agent quota/rate-limit fetching library for Claude, Gemini, Copilot, Amazon Q, and Codex.
+AI agent quota/rate-limit fetching library for Claude, Gemini, Copilot, and Codex.
 
 This package extracts the **quota fetching** layer from agent-runner so it can be reused
 independently. Gate/ramp evaluation logic (e.g. `evaluateUsageGate`) is intentionally kept
@@ -22,7 +22,6 @@ npx @metyatech/ai-quota
 
 ```
 ai-quota [agent]           Show quota for all agents, or a single named agent
-ai-quota record [agent]    Record usage for agents with local tracking (e.g. amazon-q)
 ai-quota --json            Machine-readable JSON output
 ai-quota --mcp             Start as an MCP server
 ai-quota --quiet           Suppress non-error output (useful in scripts)
@@ -31,18 +30,13 @@ ai-quota --help            Show usage information
 ai-quota --version         Show version
 ```
 
-Supported agent names: `claude`, `gemini`, `copilot`, `amazon-q`, `codex`
+Supported agent names: `claude`, `gemini`, `copilot`, `codex`
 
 ### Usage Examples
 
 **Check all quotas:**
 ```bash
 ai-quota
-```
-
-**Record Amazon Q usage (+1 request):**
-```bash
-ai-quota record amazon-q
 ```
 
 ## Model Context Protocol (MCP)
@@ -89,7 +83,6 @@ claude       CAN_USE    5h     5h: 8% used (reset in 1h 39m), 7d: 22% used (rese
 gemini/pro   CAN_USE    pro    4% used (reset in 14h 14m)
 gemini/flash CAN_USE    flash  40% used (reset in 14h 18m)
 copilot      LOW_QUOTA  -      72% used (reset in 9d 11h)
-amazon-q     CAN_USE    -      0/50 requests used (0% used, reset in 9d 14h)
 codex        CAN_USE    5h     5h: 65% used (reset in 3h), 7d: 21% used (reset in 6d)
 ```
 
@@ -101,11 +94,10 @@ ai-quota --json
 
 ```json
 {
-  "claude": { "usedPercent": 8, "resetsAt": "2026-02-19T14:00:00Z", "five_hour": { ... }, "seven_day": { ... } },
-  "gemini": { "usedPercent": 4, "resetsAt": "2026-02-20T02:34:17.000Z", "gemini-3-pro-preview": { ... }, "gemini-3-flash-preview": { ... } },
-  "copilot": { "usedPercent": 72, "resetsAt": "2026-03-01T00:00:00Z" },
-  "amazon-q": { "used": 0, "limit": 50, "percentRemaining": 100, "resetsAt": "2026-03-01T00:00:00Z" },
-  "codex": { "usedPercent": 65, "resetsAt": "2026-02-19T14:50:56Z", "fiveHour": { ... }, "weekly": { ... } }
+  "claude": { "status": "ok", "reason": null, "error": null, "data": { ... }, "display": "5h: 8% used (...)" },
+  "gemini": { "status": "ok", "reason": null, "error": null, "data": { ... }, "display": "pro: 4% used (...)" },
+  "copilot": { "status": "ok", "reason": null, "error": null, "data": { ... }, "display": "72% used (...)" },
+  "codex": { "status": "ok", "reason": null, "error": null, "data": { ... }, "display": "5h: 65% used (...)" }
 }
 ```
 
@@ -116,8 +108,7 @@ ai-quota --json
 | Claude   | `~/.claude/.credentials.json`                                       |
 | Gemini   | `~/.gemini/oauth_creds.json`                                        |
 | Copilot  | `GITHUB_TOKEN` env var, `gh auth token` CLI, or `hosts.yml`         |
-| Amazon Q | `AMAZON_Q_STATE_PATH` env var (defaults to `~/agent-runner/state/`) |
-| Codex    | `~/.codex/sessions/` JSONL files, or `~/.codex/auth.json`           |
+| Codex    | `~/.codex/auth.json`                                                |
 
 Exit code is `0` on success. Exit code `1` if any agent fetch fails.
 
@@ -156,15 +147,7 @@ console.log(results.gemini.display); // "skipped"
 | Claude   | `~/.claude/.credentials.json`             | REST (Anthropic OAuth) |
 | Gemini   | `~/.gemini/oauth_creds.json`              | REST (Google OAuth)    |
 | Copilot  | GitHub token (caller-provided)            | REST (GitHub API)      |
-| Amazon Q | Local JSON counter file                   | Local state (see note) |
-| Codex    | JSONL session files / ChatGPT backend API | Local files + REST     |
-
-> **Amazon Q limitation:** Amazon Q Developer (free tier) does not provide a public API for
-> querying usage or quota programmatically as of February 2026. There is no official AWS SDK
-> method, REST endpoint, or CLI command that returns the number of agentic requests consumed
-> against the monthly free-tier limit for Builder ID users. This library uses a local JSON
-> counter file as the best available approach. Call `recordAmazonQUsage` after each Amazon Q
-> invocation to keep the counter accurate.
+| Codex    | `~/.codex/auth.json`                      | REST (ChatGPT internal) |
 
 ## Requirements
 
@@ -227,37 +210,15 @@ Options:
 | `apiBaseUrl`     | `string` | `https://api.github.com` | Override GitHub API base URL |
 | `apiVersion`     | `string` | `2025-05-01`             | GitHub API version header    |
 
-### Amazon Q
-
-```typescript
-import {
-  fetchAmazonQRateLimits,
-  recordAmazonQUsage,
-  resolveAmazonQUsageStatePath
-} from "@metyatech/ai-quota";
-
-const statePath = resolveAmazonQUsageStatePath("/path/to/workdir");
-
-// After each Amazon Q invocation:
-recordAmazonQUsage(statePath);
-
-// Check current quota:
-const snapshot = fetchAmazonQRateLimits(statePath, 50 /* monthly limit */);
-console.log("Used:", snapshot.used, "/", snapshot.limit);
-console.log("Remaining:", snapshot.percentRemaining, "%");
-```
-
 ### Codex
 
 ```typescript
 import { fetchCodexRateLimits, rateLimitSnapshotToStatus } from "@metyatech/ai-quota";
 
 const snapshot = await fetchCodexRateLimits({ codexHome: "~/.codex" });
-if (snapshot) {
-  const status = rateLimitSnapshotToStatus(snapshot);
-  const weekly = status?.windows.find((w) => w.key === "weekly");
-  console.log("Weekly % left:", weekly?.percentLeft);
-}
+const status = rateLimitSnapshotToStatus(snapshot);
+const weekly = status?.windows.find((w) => w.key === "weekly");
+console.log("Weekly % left:", weekly?.percentLeft);
 ```
 
 Options for `fetchCodexRateLimits`:
@@ -265,7 +226,7 @@ Options for `fetchCodexRateLimits`:
 | Option           | Type       | Default    | Description                          |
 | ---------------- | ---------- | ---------- | ------------------------------------ |
 | `codexHome`      | `string`   | `~/.codex` | Path to the Codex home directory     |
-| `timeoutSeconds` | `number`   | `20`       | HTTP API fallback timeout in seconds |
+| `timeoutSeconds` | `number`   | `20`       | HTTP API request timeout in seconds |
 | `timingSink`     | `function` | none       | Callback for per-phase timing (ms)   |
 
 ## Dev commands

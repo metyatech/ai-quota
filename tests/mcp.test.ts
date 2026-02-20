@@ -29,7 +29,6 @@ describe("handleMcpMessage", () => {
       claude: { status: "ok", display: "10%", data: null, error: null },
       gemini: { status: "ok", display: "20%", data: null, error: null },
       copilot: { status: "ok", display: "30%", data: null, error: null },
-      amazonQ: { status: "ok", display: "40%", data: null, error: null },
       codex: { status: "no-data", display: "none", data: null, error: null }
     } as any);
 
