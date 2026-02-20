@@ -43,6 +43,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Refactored Constants:** Moved the default Amazon Q monthly limit to the `amazon-q.ts` module to improve code decoupling and maintainability.
 
+## [0.9.5] - 2026-02-20
+
+### Fixed
+
+- **npm publish metadata:** Normalized `package.json` fields so `npm publish` no longer auto-corrects/removes the CLI `bin` entry.
+
 ## [0.9.4] - 2026-02-20
 
 ### Changed

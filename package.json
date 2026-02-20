@@ -1,13 +1,13 @@
 {
   "name": "@metyatech/ai-quota",
-  "version": "0.9.4",
+  "version": "0.9.5",
   "description": "AI agent quota/rate-limit fetching library and CLI for Claude, Gemini, Copilot, Amazon Q, and Codex",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "ai-quota": "./dist/cli.js"
+    "ai-quota": "dist/cli.js"
   },
   "exports": {
     ".": {
@@ -23,7 +23,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/metyatech/ai-quota.git"
+    "url": "git+https://github.com/metyatech/ai-quota.git"
   },
   "bugs": {
     "url": "https://github.com/metyatech/ai-quota/issues"
