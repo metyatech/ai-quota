@@ -257,14 +257,30 @@ async function fetchCodexRateLimitsFromApi(
   }
 
   const record = data as Record<string, unknown>;
-  const rateLimits = record["rate_limits"];
-  if (!rateLimits || typeof rateLimits !== "object") {
-    throw new QuotaFetchError("parse_error", "Codex usage response missing rate_limits.");
+  const legacyRateLimits = record["rate_limits"];
+  const modernRateLimit = record["rate_limit"];
+
+  let rateLimitRecord: Record<string, unknown> | null = null;
+  let primaryCandidate: unknown = null;
+  let secondaryCandidate: unknown = null;
+
+  if (legacyRateLimits && typeof legacyRateLimits === "object") {
+    rateLimitRecord = legacyRateLimits as Record<string, unknown>;
+    primaryCandidate = rateLimitRecord["primary"];
+    secondaryCandidate = rateLimitRecord["secondary"];
+  } else if (modernRateLimit && typeof modernRateLimit === "object") {
+    rateLimitRecord = modernRateLimit as Record<string, unknown>;
+    primaryCandidate = rateLimitRecord["primary_window"] ?? rateLimitRecord["primaryWindow"];
+    secondaryCandidate = rateLimitRecord["secondary_window"] ?? rateLimitRecord["secondaryWindow"];
+  } else {
+    throw new QuotaFetchError(
+      "parse_error",
+      "Codex usage response missing rate_limit/rate_limits object."
+    );
   }
 
   const now = new Date();
   const nowSecs = Math.floor(now.getTime() / 1000);
-  const rl = rateLimits as Record<string, unknown>;
 
   const convertApiWindow = (w: unknown): RateLimitWindow | null => {
     if (typeof w !== "object" || w === null) return null;
@@ -273,20 +289,29 @@ async function fetchCodexRateLimitsFromApi(
     if (typeof usedPercent !== "number") return null;
     const limitWindowSeconds = ww["limit_window_seconds"];
     const resetAfterSeconds = ww["reset_after_seconds"];
+    const resetAt = ww["reset_at"];
     return {
       used_percent: usedPercent,
       windowDurationMins: typeof limitWindowSeconds === "number" ? limitWindowSeconds / 60 : null,
-      resetsAt: typeof resetAfterSeconds === "number" ? nowSecs + resetAfterSeconds : null
+      resetsAt:
+        typeof resetAt === "number"
+          ? resetAt
+          : typeof resetAfterSeconds === "number"
+            ? nowSecs + resetAfterSeconds
+            : null
     };
   };
 
-  const primary = convertApiWindow(rl["primary"]);
-  const secondary = convertApiWindow(rl["secondary"]);
+  const primary = convertApiWindow(primaryCandidate);
+  const secondary = convertApiWindow(secondaryCandidate);
   if (!primary && !secondary) {
     throw new QuotaFetchError("parse_error", "Codex usage response missing primary/secondary windows.");
   }
 
-  return { primary, secondary };
+  const planType = typeof record["plan_type"] === "string" ? (record["plan_type"] as string) : null;
+  const credits = Object.prototype.hasOwnProperty.call(record, "credits") ? record["credits"] : undefined;
+
+  return { primary, secondary, planType, plan_type: planType, credits };
 }
 
 /**
@@ -301,4 +326,3 @@ export async function fetchCodexRateLimits(
   const timeoutSeconds = options?.timeoutSeconds ?? 20;
   return fetchCodexRateLimitsFromApi(codexHome, timeoutSeconds * 1000, options?.timingSink);
 }
-

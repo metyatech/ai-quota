@@ -81,6 +81,45 @@ describe("fetchCodexRateLimits – remote API only", () => {
     expect(fetchSpy).toHaveBeenCalled();
   });
 
+  it("calls remote endpoint and parses rate_limit primary_window/secondary_window", async () => {
+    await mkdir(tmpDir, { recursive: true });
+    await writeFile(
+      join(tmpDir, "auth.json"),
+      JSON.stringify({ tokens: { access_token: "tok" } }),
+      "utf8"
+    );
+
+    const fetchSpy = vi.spyOn(globalThis, "fetch" as any).mockResolvedValue({
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      text: async () =>
+        JSON.stringify({
+          rate_limit: {
+            allowed: true,
+            limit_reached: false,
+            primary_window: {
+              used_percent: 11,
+              limit_window_seconds: 300 * 60,
+              reset_after_seconds: 60,
+              reset_at: 1_770_020_000
+            },
+            secondary_window: {
+              used_percent: 22,
+              limit_window_seconds: 10080 * 60,
+              reset_after_seconds: 120,
+              reset_at: 1_770_120_000
+            }
+          }
+        })
+    } as any);
+
+    const result = await fetchCodexRateLimits({ codexHome: tmpDir, timeoutSeconds: 1 });
+    expect(result.primary?.used_percent).toBe(11);
+    expect(result.secondary?.used_percent).toBe(22);
+    expect(fetchSpy).toHaveBeenCalled();
+  });
+
   it("throws endpoint_changed on 404", async () => {
     await writeFile(
       join(tmpDir, "auth.json"),
@@ -100,4 +139,3 @@ describe("fetchCodexRateLimits – remote API only", () => {
     );
   });
 });
-
