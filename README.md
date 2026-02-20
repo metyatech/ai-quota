@@ -83,13 +83,14 @@ without needing to explicitly call a tool.
 ### Human-readable output example
 
 ```
-claude:    5h: 8% used (resets in 1h 39m), 7d: 22% used (resets in 5d 20h 39m)
-gemini:    pro: 4% used (resets in 14h 14m), flash: 40% used (resets in 14h 18m)
-copilot:   72% used  (resets in 9d 11h)
-amazon-q:  0/50 requests used (0% used, resets in 9d 14h)
-codex:     5h: 65% used (resets in 3h), 7d: 21% used (resets in 6d)
-
-Status: HEALTHY — All agents are within limits.
+AGENT        STATUS     LIMIT  DETAILS
+-----------  ---------  -----  ---------------------------------------------------------------
+claude       CAN_USE    5h     5h: 8% used (reset in 1h 39m), 7d: 22% used (reset in 5d 20h 39m)
+gemini/pro   CAN_USE    pro    4% used (reset in 14h 14m)
+gemini/flash CAN_USE    flash  40% used (reset in 14h 18m)
+copilot      LOW_QUOTA  -      72% used (reset in 9d 11h)
+amazon-q     CAN_USE    -      0/50 requests used (0% used, reset in 9d 14h)
+codex        CAN_USE    5h     5h: 65% used (reset in 3h), 7d: 21% used (reset in 6d)
 ```
 
 ### JSON output example

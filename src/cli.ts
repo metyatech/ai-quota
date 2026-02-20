@@ -3,27 +3,18 @@
  * ai-quota CLI
  */
 
-import { createRequire } from "node:module";
-import { fileURLToPath } from "node:url";
-import path from "node:path";
 import os from "node:os";
 import {
   fetchAllRateLimits,
   runMcpServer,
   SUPPORTED_AGENTS,
-  AllRateLimits,
   SupportedAgent,
   agentToSdkKey,
   recordAmazonQUsage,
   resolveAmazonQUsageStatePath
 } from "./index.js";
-import { formatResetIn, getVersion } from "./utils.js";
-
-const require = createRequire(import.meta.url);
-
-function padName(name: string): string {
-  return (name + ":").padEnd(11);
-}
+import { getVersion } from "./utils.js";
+import { buildHumanRows, formatHumanTable } from "./human-output.js";
 
 function showHelp(): void {
   process.stdout.write(
@@ -38,8 +29,8 @@ function showHelp(): void {
       "  ai-quota --help            Show this help message\n" +
       "  ai-quota --version         Show version\n\n" +
       "Agents: " + SUPPORTED_AGENTS.join(", ") + "\n" +
-      "Output: {window}: {N}% used (resets in {time})\n" +
-      "Note: Percents are utilization (used), not remaining. Use --json for scripts.\n"
+      "Output: table with AGENT, STATUS, LIMIT, DETAILS\n" +
+      "Note: Use --json for scripts.\n"
   );
 }
 
@@ -113,14 +104,12 @@ async function main(): Promise<void> {
 
     if (jsonMode) {
       outputJson[agent] = res.data || { error: res.error };
-    } else if (!quiet) {
-      process.stdout.write(`${padName(agent)} ${res.display}\n`);
     }
   }
 
   if (!jsonMode && !quiet) {
-    const status = allResults.summary.status.toUpperCase();
-    process.stdout.write(`\nStatus: ${status} — ${allResults.summary.message}\n`);
+    const rows = buildHumanRows(allResults, { agents: agentsToDisplay, now: new Date() });
+    process.stdout.write(formatHumanTable(rows) + "\n");
   }
 
   if (jsonMode && !quiet) {
