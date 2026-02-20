@@ -448,8 +448,11 @@ Source: github:metyatech/agent-rules@HEAD/rules/global/release-and-publication.m
 - If authentication fails during publish, ask the user to complete the publish step.
 - Run dependency security checks before release, address critical issues, and report results.
 - After publishing, update any locally installed copy to the newly published release and verify the resolved version.
+  - Completion gate: do not report “done” until this verification is completed (or the user explicitly declines).
   - Include evidence (exact commands + observed version) in the final report.
-  - For npm CLIs: check `npm ls -g <pkg> --depth=0`, update via `npm i -g <pkg>@latest` (or the published dist-tag), then verify with `<pkg> --version` (or `npx <pkg>@latest --version`).
+  - For npm CLIs:
+    - If installed globally: check `npm ls -g <pkg> --depth=0`, update via `npm i -g <pkg>@latest` (or the published dist-tag), then verify with `<pkg> --version`.
+    - If not installed globally: skip the global update, and verify availability via `npx <pkg>@latest --version` (or the ecosystem-equivalent).
 
 ## Published artifact requirements
 
