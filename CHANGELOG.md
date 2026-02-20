@@ -43,6 +43,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Refactored Constants:** Moved the default Amazon Q monthly limit to the `amazon-q.ts` module to improve code decoupling and maintainability.
 
+## [0.9.4] - 2026-02-20
+
+### Changed
+
+- **Human CLI output:** The default human-readable output is now a compact table with `STATUS`/`LIMIT` to prevent misreading multi-window limits; Gemini is split into `gemini/pro` and `gemini/flash` lines.
+- **JSON output:** `--json` output is unchanged for scripts and automation.
+
 ## [0.9.3] - 2026-02-19
 
 ### Added
