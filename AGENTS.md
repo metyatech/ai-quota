@@ -3,15 +3,13 @@
 - Before starting any work, run `compose-agentsmd` from the project root.
 - `compose-agentsmd` intentionally regenerates `AGENTS.md`; any resulting `AGENTS.md` diff is expected and must not be treated as an unexpected external change.
 - If `compose-agentsmd` is not available, install it via npm: `npm install -g compose-agentsmd`.
-- To update shared rules, run `compose-agentsmd edit-rules`, edit the workspace rules, then run `compose-agentsmd apply-rules`.
+- To update shared/global rules, use `compose-agentsmd edit-rules` to locate the writable rules workspace, make changes only in that workspace, then run `compose-agentsmd apply-rules` (do not manually clone or edit the rules source repo outside this workflow).
+- If you find an existing clone of the rules source repo elsewhere, do not assume it is the correct rules workspace; always treat `compose-agentsmd edit-rules` output as the source of truth.
 - `compose-agentsmd apply-rules` pushes the rules workspace when `source` is GitHub (if the workspace is clean), then regenerates `AGENTS.md` with refreshed rules.
 - Do not edit `AGENTS.md` directly; update the source rules and regenerate.
 - `tools/tool-rules.md` is the shared rule source for all repositories that use compose-agentsmd.
-- Before applying any rule updates, present the planned changes first (prefer a colorized diff-style preview), ask for explicit approval, then make the edits.
-- These tool rules live in tools/tool-rules.md in the compose-agentsmd repository; do not duplicate them in global rule modules.
-- When updating rules, include a colorized diff-style summary in the final response. Use `git diff --stat` first, then include the raw ANSI-colored output of `git diff --color=always` (no sanitizing or reformatting), and limit the output to the rule files that changed.
-- Also provide a short, copy-pasteable command the user can run to view the diff in the same format. Use absolute paths so it works regardless of the current working directory, and scope it to the changed rule files.
-- If a diff is provided, a separate detailed summary is not required. If a diff is not possible, include a detailed summary of what changed (added/removed/modified items).
+- Before applying any rule updates, present the planned changes first with an ANSI-colored diff-style preview, ask for explicit approval, then make the edits.
+- These tool rules live in tools/tool-rules.md in the compose-agentsmd repository; do not duplicate them in other rule modules.
 
 Source: github:metyatech/agent-rules@HEAD/rules/global/agent-rules-composition.md
 
@@ -32,7 +30,7 @@ Source: github:metyatech/agent-rules@HEAD/rules/global/agent-rules-composition.m
 - When creating a new repository, set up rule files (e.g., agent-ruleset.json and any local rules) so compose-agentsmd can run.
 - When updating rules, infer the core intent; if it is a global policy, record it in global rules rather than project-local rules.
 - If a task requires domain rules not listed in agent-ruleset.json, update the ruleset to include them and regenerate AGENTS.md before proceeding.
-- When rule changes produce a diff, include it in the final response unless the user explicitly asks to omit it.
+- Do not include composed `AGENTS.md` diffs in the final response unless the user explicitly asks for them.
 
 ## Editing standards
 
@@ -62,6 +60,12 @@ Source: github:metyatech/agent-rules@HEAD/rules/global/autonomous-operations.md
 - If you state a persistent workflow change (e.g., `from now on`, `I'll always`), immediately propose the corresponding rule update and request approval in the same task; do not leave it as an unrecorded promise. When operating under a multi-agent-delegation model, follow that rule module's guidance on restricted operations before proposing changes.
 - Because session memory resets between tasks, treat rule files as persistent memory; when any issue or avoidable mistake occurs, update rules in the same task to prevent recurrence.
 - Treat these rules as the source of truth; do not override them with repository conventions. If a repo conflicts, update the repo to comply or update the rules to encode the exception; do not make undocumented exceptions.
+
+## Skill role persistence
+
+- When the `manager` skill is invoked in a session, treat its role as session-scoped and continue operating as a manager/orchestrator for the remainder of the session.
+- Do not revert to a direct-implementation posture mid-session unless the user explicitly asks to stop using the manager role/skill or selects a different role.
+
 - When something is unclear, investigate to resolve it; do not proceed with unresolved material uncertainty. If still unclear, ask and include what you checked.
 - Do not proceed based on assumptions or guesses without explicit user approval; hypotheses may be discussed but must not drive action.
 - Make decisions explicit when they affect scope, risk, cost, or irreversibility.
@@ -171,6 +175,7 @@ Source: github:metyatech/agent-rules@HEAD/rules/global/implementation-and-coding
 - Do not commit build artifacts (follow the repo's .gitignore).
 - Align file/folder names with their contents and keep naming conventions consistent.
 - Do not assume machine-specific environments (fixed workspace directories, drive letters, per-PC paths). Prefer repo-relative paths and explicit configuration so workflows work in arbitrary clone locations.
+- Temporary files/directories created by the agent MUST be placed only under the OS temp directory (e.g., `%TEMP%` / `$env:TEMP`). Do not create ad-hoc temp folders in repos/workspaces unless the requester explicitly approves.
 
 Source: github:metyatech/agent-rules@HEAD/rules/global/linting-formatting-and-static-analysis.md
 
@@ -307,6 +312,15 @@ When operating in delegated mode:
 - Report AC and verification outcomes concisely to the delegating agent.
 - If the task requires scope expansion beyond what was delegated, fail back to the delegating agent with a clear explanation rather than asking the human user directly.
 
+## Delegation prompt hygiene
+
+- Delegated agents MUST treat the delegator as the requester and MUST NOT ask the human user for plan approval. If blocked by repo rules, escalate to the delegator (not the human).
+- Delegating prompts MUST explicitly state delegated mode and whether plan approval is already granted; include AC and verification requirements.
+
+## Read-only / no-write claims
+
+- If a delegated agent reports read-only/no-write constraints, it MUST attempt a minimal, reversible temp-directory probe (create/write/read/delete under the OS temp directory) and report the exact failure/rejection message verbatim.
+
 ## Restricted operations
 
 The following operations require explicit delegation from the delegating agent or user. Do not perform them based on self-judgment alone:
@@ -347,6 +361,20 @@ Source: github:metyatech/agent-rules@HEAD/rules/global/planning-and-approval-gat
 
 # Planning and approval gate
 
+## Approval waiver (trivial tasks)
+
+- In direct mode, you MAY proceed without asking for explicit approval when the user request is a trivial operational check and the action is low-risk and reversible.
+- Allowed under this waiver:
+  - Read-only inspection and verification (including running linters/tests/builds) that does not modify repo files.
+  - Spawning a sub-agent for a read-only smoke check (no repo writes; temp-only and cleaned up).
+  - Creating temporary files only under the OS temp directory (and deleting them during the task).
+- Not allowed under this waiver (approval is still required):
+  - Any manual edit of repository files, configuration files, or rule files.
+  - Installing/uninstalling dependencies or changing tool versions.
+  - Git operations beyond status/diff/log (commit/push/merge/release).
+  - Any external side effects (deployments, publishing, API writes, account/permission changes).
+- If there is any meaningful uncertainty about impact, request approval as usual.
+
 - Default to a two-phase workflow: clarify goal + plan first, execute after explicit requester approval.
 - In delegated mode (see Multi-agent delegation), the delegation itself constitutes plan approval. Do not re-request approval from the human user. If scope expansion is needed, fail back to the delegating agent.
 - If a request may require any state-changing work, you MUST first dialogue with the requester to clarify details and make the goal explicit. Do not proceed while the goal is ambiguous.
@@ -364,6 +392,13 @@ Source: github:metyatech/agent-rules@HEAD/rules/global/planning-and-approval-gat
   - Confirm the plan with the requester, ask for approval explicitly, and wait for a clear "yes" before executing.
   - Once the requester has approved a plan, proceed within that plan without re-requesting approval; re-request approval only when you change or expand the plan.
   - Do not treat the original task request as plan approval; approval must be an explicit response to the presented plan.
+  - Include a compact approval-request block at the end of the plan proposal message so the requester can approve with a single short reply.
+    - Template:
+      ```text
+      Approval request
+      - Reply "yes" to approve this plan and proceed.
+      - Reply with changes to revise before executing.
+      ```
 - If state-changing execution starts without the required post-plan "yes", stop immediately, report the gate miss, add/update a prevention rule, regenerate AGENTS.md, and then restart from the approval gate.
 - No other exceptions: even if the user requests immediate execution (e.g., "skip planning", "just do it"), treat that as a request to move quickly through this gate, not to bypass it.
 
@@ -523,7 +558,9 @@ Source: github:metyatech/agent-rules@HEAD/rules/global/writing-and-documentation
 
 - Respond in Japanese unless the user requests otherwise.
 - Always report whether you committed and whether you pushed; include repo(s), branch(es), and commit hash(es) when applicable.
-- After completing a response, emit the Windows SystemSounds.Asterisk sound via PowerShell when possible.
+- After completing a response, emit the Windows SystemSounds.Asterisk sound via PowerShell only when operating in direct mode (top-level agent).
+- If operating in delegated mode (spawned by another agent / sub-agent), do not emit notification sounds.
+- If operating as a manager/orchestrator, do not ask delegated sub-agents to emit sounds; emit at most once when the overall task is complete (direct mode only).
 
 ## Developer-facing writing
 
