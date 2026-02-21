@@ -79,7 +79,7 @@ without needing to explicitly call a tool.
 ```
 AGENT        STATUS     LIMIT  DETAILS
 -----------  ---------  -----  ---------------------------------------------------------------
-claude       CAN_USE    5h     5h: 8% used (reset in 1h 39m), 7d: 22% used (reset in 5d 20h 39m)
+claude       CAN_USE    5h     5h: 8% used (reset in 1h 39m), 7d: 22% used (reset in 5d 20h 39m) (all models), 7d: 15% used (reset in 5d 2h 39m) (sonnet only)
 gemini/pro   CAN_USE    pro    4% used (reset in 14h 14m)
 gemini/flash CAN_USE    flash  40% used (reset in 14h 18m)
 copilot      LOW_QUOTA  -      72% used (reset in 9d 11h)

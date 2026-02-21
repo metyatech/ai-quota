@@ -30,6 +30,10 @@ type UsageWindow = {
   label: "5h" | "7d";
   usedPercent: number;
   resetAt: Date;
+  /** Optional disambiguator for windows with the same label (e.g., Claude 7d all-models vs Sonnet-only). */
+  suffix?: string;
+  /** Deterministic tie-break for equal usedPercent+resetAt. Lower sorts first. */
+  tieBreaker?: number;
 };
 
 function clampPercent(value: number): number {
@@ -39,7 +43,12 @@ function clampPercent(value: number): number {
 
 function compareMostConstraining(a: UsageWindow, b: UsageWindow): number {
   if (a.usedPercent !== b.usedPercent) return b.usedPercent - a.usedPercent;
-  return a.resetAt.getTime() - b.resetAt.getTime();
+  const resetDiff = a.resetAt.getTime() - b.resetAt.getTime();
+  if (resetDiff !== 0) return resetDiff;
+  const aTie = a.tieBreaker ?? 0;
+  const bTie = b.tieBreaker ?? 0;
+  if (aTie !== bTie) return aTie - bTie;
+  return (a.suffix ?? "").localeCompare(b.suffix ?? "");
 }
 
 function deriveStatusFromUsedPercent(usedPercent: number): HumanStatus {
@@ -67,7 +76,10 @@ function deriveStatusFromResult(result: QuotaResult<unknown>, usedPercent: numbe
 
 function formatWindowDetails(windows: UsageWindow[], now: Date): string {
   return windows
-    .map((w) => `${w.label}: ${w.usedPercent}% used (reset in ${formatResetIn(w.resetAt, now)})`)
+    .map((w) => {
+      const suffix = w.suffix ?? "";
+      return `${w.label}: ${w.usedPercent}% used (reset in ${formatResetIn(w.resetAt, now)})${suffix}`;
+    })
     .join(", ");
 }
 
@@ -78,13 +90,16 @@ function buildClaudeRow(
   const windows: UsageWindow[] = [];
 
   const data = result.data;
+  const hasTwoSevenDay = Boolean(data?.seven_day && data?.seven_day_sonnet);
+
   if (data?.five_hour) {
     const resetAt = new Date(data.five_hour.resets_at);
     if (Number.isFinite(resetAt.getTime())) {
       windows.push({
         label: "5h",
         usedPercent: clampPercent(Math.round(data.five_hour.utilization)),
-        resetAt
+        resetAt,
+        tieBreaker: 0
       });
     }
   }
@@ -95,7 +110,22 @@ function buildClaudeRow(
       windows.push({
         label: "7d",
         usedPercent: clampPercent(Math.round(data.seven_day.utilization)),
-        resetAt
+        resetAt,
+        suffix: hasTwoSevenDay ? " (all models)" : undefined,
+        tieBreaker: 0
+      });
+    }
+  }
+
+  if (data?.seven_day_sonnet) {
+    const resetAt = new Date(data.seven_day_sonnet.resets_at);
+    if (Number.isFinite(resetAt.getTime())) {
+      windows.push({
+        label: "7d",
+        usedPercent: clampPercent(Math.round(data.seven_day_sonnet.utilization)),
+        resetAt,
+        suffix: hasTwoSevenDay ? " (sonnet only)" : undefined,
+        tieBreaker: hasTwoSevenDay ? 1 : 0
       });
     }
   }

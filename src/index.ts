@@ -150,13 +150,20 @@ export async function fetchAllRateLimits(options?: {
         const data = await fetchClaudeRateLimits(timeout * 1000);
         if (!data) return { status: "no-data", data: null, reason: "unknown", error: null, display: "no data (unknown)" };
         const buckets: string[] = [];
+        const hasTwoSevenDay = Boolean(data.seven_day && data.seven_day_sonnet);
         if (data.five_hour) {
           const resetIn = formatResetIn(new Date(data.five_hour.resets_at));
           buckets.push(`5h: ${Math.round(data.five_hour.utilization)}% used (resets in ${resetIn})`);
         }
         if (data.seven_day) {
           const resetIn = formatResetIn(new Date(data.seven_day.resets_at));
-          buckets.push(`7d: ${Math.round(data.seven_day.utilization)}% used (resets in ${resetIn})`);
+          const suffix = hasTwoSevenDay ? " (all models)" : "";
+          buckets.push(`7d: ${Math.round(data.seven_day.utilization)}% used (resets in ${resetIn})${suffix}`);
+        }
+        if (data.seven_day_sonnet) {
+          const resetIn = formatResetIn(new Date(data.seven_day_sonnet.resets_at));
+          const suffix = hasTwoSevenDay ? " (sonnet only)" : "";
+          buckets.push(`7d: ${Math.round(data.seven_day_sonnet.utilization)}% used (resets in ${resetIn})${suffix}`);
         }
         return { status: "ok", data, reason: null, error: null, display: buckets.join(", ") || "no data" };
       } catch (e) {

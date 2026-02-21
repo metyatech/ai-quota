@@ -53,4 +53,53 @@ describe("human output", () => {
     expect(table).toContain("codex");
     expect(table).toContain("WAIT_RESET");
   });
+
+  it("claude with both 7d buckets labels all models vs sonnet only (stable tie-break)", () => {
+    const now = new Date("2026-02-19T10:00:00Z");
+
+    const all = makeEmptyResults();
+    all.claude = {
+      status: "ok",
+      reason: null,
+      error: null,
+      display: "ignored",
+      data: {
+        five_hour: { utilization: 10, resets_at: "2026-02-19T12:00:00Z" },
+        seven_day: { utilization: 50, resets_at: "2026-02-25T10:00:00Z" },
+        seven_day_sonnet: { utilization: 50, resets_at: "2026-02-25T10:00:00Z" },
+        extra_usage: null
+      }
+    };
+
+    const rows = buildHumanRows(all, { agents: ["claude"], now });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.agent).toBe("claude");
+    expect(rows[0]?.details).toContain("(all models)");
+    expect(rows[0]?.details).toContain("(sonnet only)");
+    expect(rows[0]!.details.indexOf("(all models)")).toBeLessThan(rows[0]!.details.indexOf("(sonnet only)"));
+  });
+
+  it("claude with only all-models 7d keeps legacy details (no suffix)", () => {
+    const now = new Date("2026-02-19T10:00:00Z");
+
+    const all = makeEmptyResults();
+    all.claude = {
+      status: "ok",
+      reason: null,
+      error: null,
+      display: "ignored",
+      data: {
+        five_hour: { utilization: 10, resets_at: "2026-02-19T12:00:00Z" },
+        seven_day: { utilization: 22, resets_at: "2026-02-25T10:00:00Z" },
+        seven_day_sonnet: null,
+        extra_usage: null
+      }
+    };
+
+    const rows = buildHumanRows(all, { agents: ["claude"], now });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.details).toContain("7d: 22% used");
+    expect(rows[0]?.details).not.toContain("all models");
+    expect(rows[0]?.details).not.toContain("sonnet only");
+  });
 });

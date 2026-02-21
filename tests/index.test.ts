@@ -84,6 +84,23 @@ describe("fetchAllRateLimits", () => {
     );
   });
 
+  it("renders Claude Sonnet-only 7d separately when present", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-02-19T10:00:00Z"));
+
+    vi.spyOn(claude, "fetchClaudeRateLimits").mockResolvedValue({
+      five_hour: { utilization: 10, resets_at: "2026-02-19T12:11:00Z" },
+      seven_day: { utilization: 22, resets_at: "2026-02-25T02:11:00Z" },
+      seven_day_sonnet: { utilization: 15, resets_at: "2026-02-24T12:11:00Z" },
+      extra_usage: null
+    });
+
+    const result = await fetchAllRateLimits({ agents: ["claude"] });
+    expect(result.claude.display).toBe(
+      "5h: 10% used (resets in 2h 11m), 7d: 22% used (resets in 5d 16h 11m) (all models), 7d: 15% used (resets in 5d 2h 11m) (sonnet only)"
+    );
+  });
+
   it("uses the maximum percent across all windows for summary stress", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-02-19T10:00:00Z"));
@@ -145,4 +162,3 @@ describe("fetchAllRateLimits", () => {
     );
   });
 });
-
