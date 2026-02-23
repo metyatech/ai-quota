@@ -39,7 +39,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "verify": "npm run lint && npm test && npm run build",
-    "verify:live": "npm run build && node dist/cli.js --verbose"
+    "verify:live": "npm run build && node dist/cli.js --verbose",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",
@@ -47,8 +48,19 @@
     "@typescript-eslint/eslint-plugin": "^8.17.0",
     "@typescript-eslint/parser": "^8.17.0",
     "eslint": "^9.13.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
     "prettier": "^3.4.0",
     "typescript": "^5.7.0",
     "vitest": "^1.6.0"
+  },
+  "lint-staged": {
+    "**/*.ts": [
+      "prettier --check",
+      "eslint"
+    ],
+    "*.{json,md}": [
+      "prettier --check"
+    ]
   }
 }
