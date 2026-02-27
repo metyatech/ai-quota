@@ -17,12 +17,9 @@ export type HumanStatus =
   | "LOGIN_REQUIRED"
   | "FETCH_FAILED";
 
-export type HumanLimit = "7d" | "5h" | "pro" | "flash" | "-";
-
 export type HumanRow = {
   agent: string;
   status: HumanStatus;
-  limit: HumanLimit;
   details: string;
 };
 
@@ -89,7 +86,7 @@ function formatWindowDetails(windows: UsageWindow[], now: Date): string {
 function buildClaudeRow(
   result: QuotaResult<ClaudeUsageData>,
   now: Date
-): { status: HumanStatus; limit: HumanLimit; details: string } {
+): { status: HumanStatus; details: string } {
   const windows: UsageWindow[] = [];
 
   const data = result.data;
@@ -141,27 +138,24 @@ function buildClaudeRow(
   if (status === "LOGIN_REQUIRED") {
     return {
       status,
-      limit: "-",
       details: result.reason ? `login required (${result.reason})` : "login required"
     };
   }
   if (status === "FETCH_FAILED") {
     return {
       status,
-      limit: "-",
       details: result.reason ? `fetch failed (${result.reason})` : "fetch failed"
     };
   }
 
-  const limit: HumanLimit = windows.length > 0 ? windows[0]!.label : "-";
   const details = windows.length > 0 ? formatWindowDetails(windows, now) : "no data";
-  return { status, limit, details };
+  return { status, details };
 }
 
 function buildCodexRow(
   result: QuotaResult<RateLimitSnapshot>,
   now: Date
-): { status: HumanStatus; limit: HumanLimit; details: string } {
+): { status: HumanStatus; details: string } {
   const data = result.data;
   const statusObj = data ? rateLimitSnapshotToStatus(data, now) : null;
   const windows: UsageWindow[] = [];
@@ -181,27 +175,24 @@ function buildCodexRow(
   if (status === "LOGIN_REQUIRED") {
     return {
       status,
-      limit: "-",
       details: result.reason ? `login required (${result.reason})` : "login required"
     };
   }
   if (status === "FETCH_FAILED") {
     return {
       status,
-      limit: "-",
       details: result.reason ? `fetch failed (${result.reason})` : "fetch failed"
     };
   }
 
-  const limit: HumanLimit = windows.length > 0 ? windows[0]!.label : "-";
   const details = windows.length > 0 ? formatWindowDetails(windows, now) : "no data";
-  return { status, limit, details };
+  return { status, details };
 }
 
 function buildCopilotRow(
   result: QuotaResult<CopilotUsage>,
   now: Date
-): { status: HumanStatus; limit: HumanLimit; details: string } {
+): { status: HumanStatus; details: string } {
   const data = result.data;
   const usedPercent = data ? clampPercent(Math.round(100 - data.percentRemaining)) : null;
   const status = deriveStatusFromResult(result as unknown as QuotaResult<unknown>, usedPercent);
@@ -209,33 +200,27 @@ function buildCopilotRow(
   if (status === "LOGIN_REQUIRED") {
     return {
       status,
-      limit: "-",
       details: result.reason ? `login required (${result.reason})` : "login required"
     };
   }
   if (status === "FETCH_FAILED") {
     return {
       status,
-      limit: "-",
       details: result.reason ? `fetch failed (${result.reason})` : "fetch failed"
     };
   }
 
-  if (!data) return { status: "FETCH_FAILED", limit: "-", details: "no data" };
+  if (!data) return { status: "FETCH_FAILED", details: "no data" };
   return {
     status,
-    limit: "-",
     details: `${usedPercent}% used (reset in ${formatResetIn(data.resetAt, now)})`
   };
 }
 
-function classifyGeminiModelId(modelId: string): {
-  agentSuffix: "pro" | "flash" | null;
-  limit: HumanLimit;
-} {
-  if (modelId.includes("pro")) return { agentSuffix: "pro", limit: "pro" };
-  if (modelId.includes("flash")) return { agentSuffix: "flash", limit: "flash" };
-  return { agentSuffix: null, limit: "-" };
+function classifyGeminiModelId(modelId: string): { agentSuffix: "pro" | "flash" | null } {
+  if (modelId.includes("pro")) return { agentSuffix: "pro" };
+  if (modelId.includes("flash")) return { agentSuffix: "flash" };
+  return { agentSuffix: null };
 }
 
 function buildGeminiRows(result: QuotaResult<GeminiUsage>, now: Date): HumanRow[] {
@@ -251,7 +236,7 @@ function buildGeminiRows(result: QuotaResult<GeminiUsage>, now: Date): HumanRow[
         : result.reason
           ? `fetch failed (${result.reason})`
           : "fetch failed";
-    return [{ agent: "gemini", status, limit: "-", details }];
+    return [{ agent: "gemini", status, details }];
   }
 
   const rows: HumanRow[] = [];
@@ -259,7 +244,7 @@ function buildGeminiRows(result: QuotaResult<GeminiUsage>, now: Date): HumanRow[
 
   for (const [modelId, usage] of Object.entries(data ?? {})) {
     if (!usage) continue;
-    const { agentSuffix, limit } = classifyGeminiModelId(modelId);
+    const { agentSuffix } = classifyGeminiModelId(modelId);
     if (!agentSuffix) continue;
     if (seenSuffix.has(agentSuffix)) continue;
     seenSuffix.add(agentSuffix);
@@ -270,19 +255,18 @@ function buildGeminiRows(result: QuotaResult<GeminiUsage>, now: Date): HumanRow[
     rows.push({
       agent: `gemini/${agentSuffix}`,
       status,
-      limit,
       details: `${usedPercent}% used (reset in ${formatResetIn(usage.resetAt, now)})`
     });
   }
 
   if (rows.length === 0) {
-    return [{ agent: "gemini", status: "FETCH_FAILED", limit: "-", details: "no data" }];
+    return [{ agent: "gemini", status: "FETCH_FAILED", details: "no data" }];
   }
 
   // Stable output ordering: pro then flash (regardless of used%)
   rows.sort((a, b) => {
-    const aRank = a.limit === "pro" ? 0 : a.limit === "flash" ? 1 : 2;
-    const bRank = b.limit === "pro" ? 0 : b.limit === "flash" ? 1 : 2;
+    const aRank = a.agent.endsWith("/pro") ? 0 : a.agent.endsWith("/flash") ? 1 : 2;
+    const bRank = b.agent.endsWith("/pro") ? 0 : b.agent.endsWith("/flash") ? 1 : 2;
     if (aRank !== bRank) return aRank - bRank;
     return a.agent.localeCompare(b.agent);
   });
@@ -325,8 +309,8 @@ export function buildHumanRows(
 }
 
 export function formatHumanTable(rows: HumanRow[]): string {
-  const headers = ["AGENT", "STATUS", "LIMIT", "DETAILS"] as const;
-  const cells = rows.map((r) => [r.agent, r.status, r.limit, r.details] as const);
+  const headers = ["AGENT", "STATUS", "DETAILS"] as const;
+  const cells = rows.map((r) => [r.agent, r.status, r.details] as const);
 
   const widths = headers.map((h, i) => {
     let max = h.length;
@@ -341,14 +325,7 @@ export function formatHumanTable(rows: HumanRow[]): string {
   lines.push(widths.map((w) => "-".repeat(w)).join("  "));
 
   for (const r of rows) {
-    const line =
-      pad(r.agent, widths[0]!) +
-      "  " +
-      pad(r.status, widths[1]!) +
-      "  " +
-      pad(r.limit, widths[2]!) +
-      "  " +
-      r.details;
+    const line = pad(r.agent, widths[0]!) + "  " + pad(r.status, widths[1]!) + "  " + r.details;
     lines.push(line);
   }
 

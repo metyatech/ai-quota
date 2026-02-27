@@ -37,7 +37,7 @@ function makeEmptyResults(): AllRateLimits {
 }
 
 describe("human output", () => {
-  it("codex 5h 0% + 7d 100% => WAIT_RESET, LIMIT=7d, details order 7d then 5h", () => {
+  it("codex 5h 0% + 7d 100% => WAIT_RESET, details order 7d then 5h", () => {
     const now = new Date("2026-02-19T10:00:00Z");
 
     const all = makeEmptyResults();
@@ -64,7 +64,6 @@ describe("human output", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]?.agent).toBe("codex");
     expect(rows[0]?.status).toBe("WAIT_RESET");
-    expect(rows[0]?.limit).toBe("7d");
     expect(rows[0]?.details.indexOf("7d:")).toBeGreaterThanOrEqual(0);
     expect(rows[0]?.details.indexOf("5h:")).toBeGreaterThanOrEqual(0);
     expect(rows[0]!.details.indexOf("7d:")).toBeLessThan(rows[0]!.details.indexOf("5h:"));
@@ -72,7 +71,6 @@ describe("human output", () => {
     const table = formatHumanTable(rows);
     expect(table).toContain("AGENT");
     expect(table).toContain("STATUS");
-    expect(table).toContain("LIMIT");
     expect(table).toContain("DETAILS");
     expect(table).toContain("codex");
     expect(table).toContain("WAIT_RESET");
