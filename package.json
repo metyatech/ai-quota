@@ -38,7 +38,7 @@
     "lint": "eslint . && tsc -p tsconfig.json --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "verify": "npm run lint && npm test && npm run build",
+    "verify": "npm run format:check && npm run lint && npm test && npm run build",
     "verify:live": "npm run build && node dist/cli.js --verbose",
     "prepare": "husky"
   },

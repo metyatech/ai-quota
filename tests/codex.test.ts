@@ -70,7 +70,11 @@ describe("fetchCodexRateLimits – remote API only", () => {
         JSON.stringify({
           rate_limits: {
             primary: { used_percent: 10, limit_window_seconds: 300 * 60, reset_after_seconds: 60 },
-            secondary: { used_percent: 20, limit_window_seconds: 10080 * 60, reset_after_seconds: 120 }
+            secondary: {
+              used_percent: 20,
+              limit_window_seconds: 10080 * 60,
+              reset_after_seconds: 120
+            }
           }
         })
     } as any);
@@ -138,7 +142,11 @@ describe("fetchCodexRateLimits – remote API only", () => {
       text: async () =>
         JSON.stringify({
           rate_limit: {
-            primary_window: { used_percent: 33, limit_window_seconds: 300 * 60, reset_after_seconds: 60 }
+            primary_window: {
+              used_percent: 33,
+              limit_window_seconds: 300 * 60,
+              reset_after_seconds: 60
+            }
           }
         })
     } as any);
@@ -146,7 +154,9 @@ describe("fetchCodexRateLimits – remote API only", () => {
     const result = await fetchCodexRateLimits({ codexHome: tmpDir, timeoutSeconds: 1 });
     expect(result.primary?.used_percent).toBe(33);
     expect(result.secondary).toBeNull();
-    expect(result.primary?.resetsAt).toBe(Math.floor(Date.parse("2026-02-02T10:00:00Z") / 1000) + 60);
+    expect(result.primary?.resetsAt).toBe(
+      Math.floor(Date.parse("2026-02-02T10:00:00Z") / 1000) + 60
+    );
     expect(fetchSpy).toHaveBeenCalled();
 
     vi.useRealTimers();
@@ -167,8 +177,16 @@ describe("fetchCodexRateLimits – remote API only", () => {
       text: async () =>
         JSON.stringify({
           rate_limit: {
-            primaryWindow: { used_percent: 44, limit_window_seconds: 300 * 60, reset_after_seconds: 60 },
-            secondaryWindow: { used_percent: 55, limit_window_seconds: 10080 * 60, reset_after_seconds: 120 }
+            primaryWindow: {
+              used_percent: 44,
+              limit_window_seconds: 300 * 60,
+              reset_after_seconds: 60
+            },
+            secondaryWindow: {
+              used_percent: 55,
+              limit_window_seconds: 10080 * 60,
+              reset_after_seconds: 120
+            }
           }
         })
     } as any);
@@ -193,8 +211,8 @@ describe("fetchCodexRateLimits – remote API only", () => {
       text: async () => "nope"
     } as any);
 
-    await expect(fetchCodexRateLimits({ codexHome: tmpDir, timeoutSeconds: 1 })).rejects.toMatchObject(
-      { name: "QuotaFetchError", reason: "endpoint_changed" }
-    );
+    await expect(
+      fetchCodexRateLimits({ codexHome: tmpDir, timeoutSeconds: 1 })
+    ).rejects.toMatchObject({ name: "QuotaFetchError", reason: "endpoint_changed" });
   });
 });

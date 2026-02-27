@@ -51,12 +51,12 @@ describe("fetchAllRateLimits", () => {
   });
 
   it("selectively fetches only requested agents", async () => {
-    const claudeSpy = vi.spyOn(claude, "fetchClaudeRateLimits").mockRejectedValue(
-      new QuotaFetchError("no_credentials", "missing creds")
-    );
-    const geminiSpy = vi.spyOn(gemini, "fetchGeminiRateLimits").mockRejectedValue(
-      new QuotaFetchError("no_credentials", "missing creds")
-    );
+    const claudeSpy = vi
+      .spyOn(claude, "fetchClaudeRateLimits")
+      .mockRejectedValue(new QuotaFetchError("no_credentials", "missing creds"));
+    const geminiSpy = vi
+      .spyOn(gemini, "fetchGeminiRateLimits")
+      .mockRejectedValue(new QuotaFetchError("no_credentials", "missing creds"));
 
     const result = await fetchAllRateLimits({ agents: ["claude"] });
 

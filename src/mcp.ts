@@ -1,6 +1,6 @@
 /**
  * Lightweight MCP (Model Context Protocol) Server for ai-quota.
- * 
+ *
  * Provides tools and resources for AI agents to stay aware of usage limits.
  */
 
@@ -36,7 +36,7 @@ async function getQuotaMarkdown(agent?: string): Promise<string> {
   const all = await fetchAllRateLimits({
     agents: agent ? [agent as SupportedAgent] : undefined
   });
-  
+
   let markdown: string;
   if (agent && (SUPPORTED_AGENTS as readonly string[]).includes(agent)) {
     const sdkKey = agentToSdkKey(agent as SupportedAgent);
@@ -65,7 +65,13 @@ export async function runMcpServer(): Promise<void> {
         const response = await handleMcpMessage(request);
         if (response) process.stdout.write(JSON.stringify(response) + "\n");
       } catch (e) {
-        process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } }) + "\n");
+        process.stdout.write(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: null,
+            error: { code: -32700, message: "Parse error" }
+          }) + "\n"
+        );
       }
     }
   });

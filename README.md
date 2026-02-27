@@ -35,6 +35,7 @@ Supported agent names: `claude`, `gemini`, `copilot`, `codex`
 ### Usage Examples
 
 **Check all quotas:**
+
 ```bash
 ai-quota
 ```
@@ -65,13 +66,15 @@ limits across different models and providers.
 ### MCP Resources
 
 `ai-quota` also provides an MCP resource:
+
 - **URI:** `quota://current`
-- **Description:** A live, auto-updating Markdown table of all current AI agent quotas. 
+- **Description:** A live, auto-updating Markdown table of all current AI agent quotas.
 
 AI agents can "subscribe" to this resource to keep the quota information in their context
 without needing to explicitly call a tool.
 
 **Tool: `get_quota`**
+
 - `agent` (optional): Specific agent to check (`claude`, `gemini`, etc.). If omitted, returns quota for all agents in a Markdown table.
 
 ### Human-readable output example
@@ -103,12 +106,12 @@ ai-quota --json
 
 ### Credential lookup
 
-| Agent    | Source                                                              |
-| -------- | ------------------------------------------------------------------- |
-| Claude   | `~/.claude/.credentials.json`                                       |
-| Gemini   | `~/.gemini/oauth_creds.json`                                        |
-| Copilot  | `GITHUB_TOKEN` env var, `gh auth token` CLI, or `hosts.yml`         |
-| Codex    | `~/.codex/auth.json`                                                |
+| Agent   | Source                                                      |
+| ------- | ----------------------------------------------------------- |
+| Claude  | `~/.claude/.credentials.json`                               |
+| Gemini  | `~/.gemini/oauth_creds.json`                                |
+| Copilot | `GITHUB_TOKEN` env var, `gh auth token` CLI, or `hosts.yml` |
+| Codex   | `~/.codex/auth.json`                                        |
 
 Exit code is `0` on success. Exit code `1` if any agent fetch fails.
 
@@ -142,12 +145,12 @@ console.log(results.gemini.display); // "skipped"
 
 ## Supported agents
 
-| Agent    | Source                                    | API type               |
-| -------- | ----------------------------------------- | ---------------------- |
-| Claude   | `~/.claude/.credentials.json`             | REST (Anthropic OAuth) |
-| Gemini   | `~/.gemini/oauth_creds.json`              | REST (Google OAuth)    |
-| Copilot  | GitHub token (caller-provided)            | REST (GitHub API)      |
-| Codex    | `~/.codex/auth.json`                      | REST (ChatGPT internal) |
+| Agent   | Source                         | API type                |
+| ------- | ------------------------------ | ----------------------- |
+| Claude  | `~/.claude/.credentials.json`  | REST (Anthropic OAuth)  |
+| Gemini  | `~/.gemini/oauth_creds.json`   | REST (Google OAuth)     |
+| Copilot | GitHub token (caller-provided) | REST (GitHub API)       |
+| Codex   | `~/.codex/auth.json`           | REST (ChatGPT internal) |
 
 ## Requirements
 
@@ -223,11 +226,11 @@ console.log("Weekly % left:", weekly?.percentLeft);
 
 Options for `fetchCodexRateLimits`:
 
-| Option           | Type       | Default    | Description                          |
-| ---------------- | ---------- | ---------- | ------------------------------------ |
-| `codexHome`      | `string`   | `~/.codex` | Path to the Codex home directory     |
+| Option           | Type       | Default    | Description                         |
+| ---------------- | ---------- | ---------- | ----------------------------------- |
+| `codexHome`      | `string`   | `~/.codex` | Path to the Codex home directory    |
 | `timeoutSeconds` | `number`   | `20`       | HTTP API request timeout in seconds |
-| `timingSink`     | `function` | none       | Callback for per-phase timing (ms)   |
+| `timingSink`     | `function` | none       | Callback for per-phase timing (ms)  |
 
 ## Dev commands
 

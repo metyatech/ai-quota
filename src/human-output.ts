@@ -58,7 +58,10 @@ function deriveStatusFromUsedPercent(usedPercent: number): HumanStatus {
   return "CAN_USE";
 }
 
-function deriveStatusFromResult(result: QuotaResult<unknown>, usedPercent: number | null): HumanStatus {
+function deriveStatusFromResult(
+  result: QuotaResult<unknown>,
+  usedPercent: number | null
+): HumanStatus {
   const loginReasons = new Set(["auth_failed", "no_credentials", "token_expired"]);
   if (result.status === "error") {
     if (result.reason && loginReasons.has(result.reason)) return "LOGIN_REQUIRED";
@@ -226,16 +229,16 @@ function buildCopilotRow(
   };
 }
 
-function classifyGeminiModelId(modelId: string): { agentSuffix: "pro" | "flash" | null; limit: HumanLimit } {
+function classifyGeminiModelId(modelId: string): {
+  agentSuffix: "pro" | "flash" | null;
+  limit: HumanLimit;
+} {
   if (modelId.includes("pro")) return { agentSuffix: "pro", limit: "pro" };
   if (modelId.includes("flash")) return { agentSuffix: "flash", limit: "flash" };
   return { agentSuffix: null, limit: "-" };
 }
 
-function buildGeminiRows(
-  result: QuotaResult<GeminiUsage>,
-  now: Date
-): HumanRow[] {
+function buildGeminiRows(result: QuotaResult<GeminiUsage>, now: Date): HumanRow[] {
   const data = result.data;
 
   if (result.status !== "ok") {

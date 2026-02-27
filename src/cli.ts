@@ -24,7 +24,9 @@ function showHelp(): void {
       "  ai-quota --verbose         Show extra debug info on stderr\n" +
       "  ai-quota --help            Show this help message\n" +
       "  ai-quota --version         Show version\n\n" +
-      "Agents: " + SUPPORTED_AGENTS.join(", ") + "\n" +
+      "Agents: " +
+      SUPPORTED_AGENTS.join(", ") +
+      "\n" +
       "Output: table with AGENT, STATUS, LIMIT, DETAILS\n" +
       "Note: Use --json for scripts.\n"
   );

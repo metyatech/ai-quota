@@ -69,10 +69,7 @@ export {
   getCopilotToken
 } from "./copilot.js";
 export type { FetchCopilotRateLimitsOptions } from "./copilot.js";
-export {
-  fetchCodexRateLimits,
-  rateLimitSnapshotToStatus
-} from "./codex.js";
+export { fetchCodexRateLimits, rateLimitSnapshotToStatus } from "./codex.js";
 export type {
   CodexStatus,
   UsageWindow,
@@ -121,14 +118,18 @@ function statusForReason(reason: ErrorReason): AgentStatus {
   return "error";
 }
 
-function displayForFailure(status: AgentStatus, reason: ErrorReason, message: string | null): string {
+function displayForFailure(
+  status: AgentStatus,
+  reason: ErrorReason,
+  message: string | null
+): string {
   if (status === "no-data") return `no data (${reason})`;
   return message ? `error (${reason}): ${message}` : `error (${reason})`;
 }
 
 /**
  * Fetches quota/usage for specified agents (or all by default) using default credential discovery.
- * 
+ *
  * @param options - Configuration options for the fetch operation
  * @param options.agents - List of specific agents to fetch. If omitted, all agents are fetched.
  * @param options.verbose - Enable detailed logging to stderr
@@ -148,24 +149,43 @@ export async function fetchAllRateLimits(options?: {
     claude: async () => {
       try {
         const data = await fetchClaudeRateLimits(timeout * 1000);
-        if (!data) return { status: "no-data", data: null, reason: "unknown", error: null, display: "no data (unknown)" };
+        if (!data)
+          return {
+            status: "no-data",
+            data: null,
+            reason: "unknown",
+            error: null,
+            display: "no data (unknown)"
+          };
         const buckets: string[] = [];
         const hasTwoSevenDay = Boolean(data.seven_day && data.seven_day_sonnet);
         if (data.five_hour) {
           const resetIn = formatResetIn(new Date(data.five_hour.resets_at));
-          buckets.push(`5h: ${Math.round(data.five_hour.utilization)}% used (resets in ${resetIn})`);
+          buckets.push(
+            `5h: ${Math.round(data.five_hour.utilization)}% used (resets in ${resetIn})`
+          );
         }
         if (data.seven_day) {
           const resetIn = formatResetIn(new Date(data.seven_day.resets_at));
           const suffix = hasTwoSevenDay ? " (all models)" : "";
-          buckets.push(`7d: ${Math.round(data.seven_day.utilization)}% used (resets in ${resetIn})${suffix}`);
+          buckets.push(
+            `7d: ${Math.round(data.seven_day.utilization)}% used (resets in ${resetIn})${suffix}`
+          );
         }
         if (data.seven_day_sonnet) {
           const resetIn = formatResetIn(new Date(data.seven_day_sonnet.resets_at));
           const suffix = hasTwoSevenDay ? " (sonnet only)" : "";
-          buckets.push(`7d: ${Math.round(data.seven_day_sonnet.utilization)}% used (resets in ${resetIn})${suffix}`);
+          buckets.push(
+            `7d: ${Math.round(data.seven_day_sonnet.utilization)}% used (resets in ${resetIn})${suffix}`
+          );
         }
-        return { status: "ok", data, reason: null, error: null, display: buckets.join(", ") || "no data" };
+        return {
+          status: "ok",
+          data,
+          reason: null,
+          error: null,
+          display: buckets.join(", ") || "no data"
+        };
       } catch (e) {
         const { reason, message } = classifyError(e);
         const status = statusForReason(reason);
@@ -182,18 +202,37 @@ export async function fetchAllRateLimits(options?: {
     gemini: async () => {
       try {
         const data = await fetchGeminiRateLimits(timeout * 1000);
-        if (!data) return { status: "no-data", data: null, reason: "unknown", error: null, display: "no data (unknown)" };
+        if (!data)
+          return {
+            status: "no-data",
+            data: null,
+            reason: "unknown",
+            error: null,
+            display: "no data (unknown)"
+          };
         const models: string[] = [];
         const seen = new Set<string>();
         for (const [modelId, usage] of Object.entries(data)) {
           if (!usage) continue;
           // Simplify model names (e.g., "gemini-3-pro-preview" -> "pro")
-          const name = modelId.includes("pro") ? "pro" : modelId.includes("flash") ? "flash" : modelId;
+          const name = modelId.includes("pro")
+            ? "pro"
+            : modelId.includes("flash")
+              ? "flash"
+              : modelId;
           if (seen.has(name)) continue;
           seen.add(name);
-          models.push(`${name}: ${Math.round(usage.usage)}% used (resets in ${formatResetIn(usage.resetAt)})`);
+          models.push(
+            `${name}: ${Math.round(usage.usage)}% used (resets in ${formatResetIn(usage.resetAt)})`
+          );
         }
-        return { status: "ok", data, reason: null, error: null, display: models.join(", ") || "no data" };
+        return {
+          status: "ok",
+          data,
+          reason: null,
+          error: null,
+          display: models.join(", ") || "no data"
+        };
       } catch (e) {
         const { reason, message } = classifyError(e);
         const status = statusForReason(reason);
@@ -210,11 +249,31 @@ export async function fetchAllRateLimits(options?: {
     copilot: async () => {
       try {
         const token = getCopilotToken(verbose);
-        if (!token) return { status: "no-data", data: null, reason: "no_credentials", error: null, display: "no data (no_credentials)" };
+        if (!token)
+          return {
+            status: "no-data",
+            data: null,
+            reason: "no_credentials",
+            error: null,
+            display: "no data (no_credentials)"
+          };
         const data = await fetchCopilotRateLimits({ token, timeoutSeconds: timeout });
-        if (!data) return { status: "error", data: null, reason: "parse_error", error: "Copilot API response missing quota fields.", display: "error (parse_error)" };
+        if (!data)
+          return {
+            status: "error",
+            data: null,
+            reason: "parse_error",
+            error: "Copilot API response missing quota fields.",
+            display: "error (parse_error)"
+          };
         const usedPercent = Math.round(100 - data.percentRemaining);
-        return { status: "ok", data, reason: null, error: null, display: `${usedPercent}% used (resets in ${formatResetIn(data.resetAt)})` };
+        return {
+          status: "ok",
+          data,
+          reason: null,
+          error: null,
+          display: `${usedPercent}% used (resets in ${formatResetIn(data.resetAt)})`
+        };
       } catch (e) {
         const { reason, message } = classifyError(e);
         const status = statusForReason(reason);
@@ -231,11 +290,28 @@ export async function fetchAllRateLimits(options?: {
     codex: async () => {
       try {
         const data = await fetchCodexRateLimits({ timeoutSeconds: timeout });
-        if (!data) return { status: "no-data", data: null, reason: "unknown", error: null, display: "no data (unknown)" };
+        if (!data)
+          return {
+            status: "no-data",
+            data: null,
+            reason: "unknown",
+            error: null,
+            display: "no data (unknown)"
+          };
         const status = rateLimitSnapshotToStatus(data);
-        if (!status || status.windows.length === 0) return { status: "error", data, reason: "parse_error", error: "Codex usage windows missing.", display: "error (parse_error)" };
+        if (!status || status.windows.length === 0)
+          return {
+            status: "error",
+            data,
+            reason: "parse_error",
+            error: "Codex usage windows missing.",
+            display: "error (parse_error)"
+          };
         const disp = status.windows
-          .map((w) => `${w.label}: ${Math.round(100 - w.percentLeft)}% used (resets in ${formatResetIn(w.resetAt)})`)
+          .map(
+            (w) =>
+              `${w.label}: ${Math.round(100 - w.percentLeft)}% used (resets in ${formatResetIn(w.resetAt)})`
+          )
           .join(", ");
         return { status: "ok", data, reason: null, error: null, display: disp };
       } catch (e) {
@@ -261,10 +337,12 @@ export async function fetchAllRateLimits(options?: {
     codex: DEFAULT_SKIPPED_RESULT as unknown as QuotaResult<RateLimitSnapshot>
   };
 
-  const results = await Promise.all(agentsToFetch.map(async (name) => {
-    const result = await fetchers[name]();
-    return { name, result };
-  }));
+  const results = await Promise.all(
+    agentsToFetch.map(async (name) => {
+      const result = await fetchers[name]();
+      return { name, result };
+    })
+  );
 
   let maxStress = 0;
   let criticalCount = 0;
@@ -284,7 +362,10 @@ export async function fetchAllRateLimits(options?: {
   }
 
   if (criticalCount > 0) {
-    finalResult.summary = { status: "critical", message: `${criticalCount} agent(s) failed or are at 100% capacity.` };
+    finalResult.summary = {
+      status: "critical",
+      message: `${criticalCount} agent(s) failed or are at 100% capacity.`
+    };
   } else if (maxStress >= 80) {
     finalResult.summary = { status: "warning", message: `Usage is high (up to ${maxStress}%).` };
   }

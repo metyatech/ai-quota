@@ -24,4 +24,3 @@ export function isQuotaFetchError(e: unknown): e is QuotaFetchError {
   const r = e as { name?: unknown; reason?: unknown };
   return r.name === "QuotaFetchError" && typeof r.reason === "string";
 }
-

@@ -141,13 +141,13 @@ export type AgentStatus = "ok" | "no-data" | "error";
 /**
  * Standard error reasons for a failed fetch operation.
  */
-export type ErrorReason = 
-  | "auth_failed" 
-  | "network_error" 
-  | "api_error" 
-  | "no_credentials" 
+export type ErrorReason =
+  | "auth_failed"
+  | "network_error"
+  | "api_error"
+  | "no_credentials"
   | "token_expired"
-  | "timeout" 
+  | "timeout"
   | "endpoint_changed"
   | "parse_error"
   | "unknown";

@@ -97,7 +97,10 @@ describe("fetchGeminiRateLimits", () => {
 
   it("throws auth_failed when loadCodeAssist fails with 403", async () => {
     const futureExpiry = Date.now() + 3600_000;
-    fs.writeFileSync(credsPath, JSON.stringify({ access_token: "ya29.valid-token", expiry_date: futureExpiry }));
+    fs.writeFileSync(
+      credsPath,
+      JSON.stringify({ access_token: "ya29.valid-token", expiry_date: futureExpiry })
+    );
 
     vi.stubGlobal(
       "fetch",
@@ -115,4 +118,3 @@ describe("fetchGeminiRateLimits", () => {
     });
   });
 });
-

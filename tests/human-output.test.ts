@@ -5,10 +5,34 @@ import { buildHumanRows, formatHumanTable } from "../src/human-output.js";
 function makeEmptyResults(): AllRateLimits {
   return {
     summary: { status: "healthy", message: "ok" },
-    claude: { status: "no-data", data: null, reason: "no_credentials", error: null, display: "no data" },
-    gemini: { status: "no-data", data: null, reason: "no_credentials", error: null, display: "no data" },
-    copilot: { status: "no-data", data: null, reason: "no_credentials", error: null, display: "no data" },
-    codex: { status: "no-data", data: null, reason: "no_credentials", error: null, display: "no data" }
+    claude: {
+      status: "no-data",
+      data: null,
+      reason: "no_credentials",
+      error: null,
+      display: "no data"
+    },
+    gemini: {
+      status: "no-data",
+      data: null,
+      reason: "no_credentials",
+      error: null,
+      display: "no data"
+    },
+    copilot: {
+      status: "no-data",
+      data: null,
+      reason: "no_credentials",
+      error: null,
+      display: "no data"
+    },
+    codex: {
+      status: "no-data",
+      data: null,
+      reason: "no_credentials",
+      error: null,
+      display: "no data"
+    }
   };
 }
 
@@ -76,7 +100,9 @@ describe("human output", () => {
     expect(rows[0]?.agent).toBe("claude");
     expect(rows[0]?.details).toContain("(all models)");
     expect(rows[0]?.details).toContain("(sonnet only)");
-    expect(rows[0]!.details.indexOf("(all models)")).toBeLessThan(rows[0]!.details.indexOf("(sonnet only)"));
+    expect(rows[0]!.details.indexOf("(all models)")).toBeLessThan(
+      rows[0]!.details.indexOf("(sonnet only)")
+    );
   });
 
   it("claude with only all-models 7d keeps legacy details (no suffix)", () => {

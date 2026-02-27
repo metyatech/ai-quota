@@ -45,7 +45,8 @@ function readGeminiOauthClientInfoFromEnv(): GeminiOauthClientInfo | null {
 
   return {
     clientId: typeof clientId === "string" && clientId.length > 0 ? clientId : undefined,
-    clientSecret: typeof clientSecret === "string" && clientSecret.length > 0 ? clientSecret : undefined,
+    clientSecret:
+      typeof clientSecret === "string" && clientSecret.length > 0 ? clientSecret : undefined,
     source: "env"
   };
 }
@@ -85,7 +86,15 @@ function tryReadGeminiCliOauthClientInfoFromWellKnownPaths(): GeminiOauthClientI
           "code_assist",
           "oauth2.js"
         ),
-        path.join(npmGlobal, "@google", "gemini-cli-core", "dist", "src", "code_assist", "oauth2.js")
+        path.join(
+          npmGlobal,
+          "@google",
+          "gemini-cli-core",
+          "dist",
+          "src",
+          "code_assist",
+          "oauth2.js"
+        )
       );
     }
   }
@@ -154,7 +163,8 @@ async function refreshAccessToken(options: {
 
   const text = await res.text();
   if (!res.ok) {
-    const reason = res.status === 400 || res.status === 401 || res.status === 403 ? "auth_failed" : "api_error";
+    const reason =
+      res.status === 400 || res.status === 401 || res.status === 403 ? "auth_failed" : "api_error";
     throw new QuotaFetchError(reason, `Failed to refresh Google access token (${res.status}).`, {
       httpStatus: res.status
     });
@@ -164,7 +174,9 @@ async function refreshAccessToken(options: {
   try {
     data = (text.trim() ? JSON.parse(text) : {}) as Record<string, unknown>;
   } catch (e) {
-    throw new QuotaFetchError("parse_error", "Google token refresh response was not valid JSON.", { cause: e });
+    throw new QuotaFetchError("parse_error", "Google token refresh response was not valid JSON.", {
+      cause: e
+    });
   }
 
   if (typeof data?.access_token !== "string" || (data.access_token as string).length === 0) {
@@ -182,16 +194,23 @@ async function refreshAccessToken(options: {
 async function getCredentials(timeoutMs: number): Promise<{ accessToken: string }> {
   const credsPath = path.join(os.homedir(), ".gemini", "oauth_creds.json");
   if (!fs.existsSync(credsPath)) {
-    throw new QuotaFetchError("no_credentials", `Gemini OAuth credentials not found at ${credsPath}`);
+    throw new QuotaFetchError(
+      "no_credentials",
+      `Gemini OAuth credentials not found at ${credsPath}`
+    );
   }
 
   let creds: Record<string, unknown>;
   try {
     creds = JSON.parse(fs.readFileSync(credsPath, "utf8")) as Record<string, unknown>;
   } catch (e) {
-    throw new QuotaFetchError("parse_error", `Failed to parse Gemini OAuth credentials at ${credsPath}`, {
-      cause: e
-    });
+    throw new QuotaFetchError(
+      "parse_error",
+      `Failed to parse Gemini OAuth credentials at ${credsPath}`,
+      {
+        cause: e
+      }
+    );
   }
 
   const now = Date.now();
@@ -208,7 +227,9 @@ async function getCredentials(timeoutMs: number): Promise<{ accessToken: string 
       const clientId =
         getClientIdFromIdToken(creds.id_token) ??
         discovered?.clientId ??
-        (typeof creds.client_id === "string" && creds.client_id.length > 0 ? creds.client_id : undefined);
+        (typeof creds.client_id === "string" && creds.client_id.length > 0
+          ? creds.client_id
+          : undefined);
       const clientSecret =
         discovered?.clientSecret ??
         (typeof creds.client_secret === "string" && creds.client_secret.length > 0
@@ -246,7 +267,10 @@ async function getCredentials(timeoutMs: number): Promise<{ accessToken: string 
         // Best-effort: keep the refreshed token in memory even if persisting fails.
       }
     } else {
-      throw new QuotaFetchError("token_expired", "Gemini access token expired and no refresh token available.");
+      throw new QuotaFetchError(
+        "token_expired",
+        "Gemini access token expired and no refresh token available."
+      );
     }
   }
 
@@ -304,7 +328,10 @@ export async function fetchGeminiRateLimits(timeoutMs: number = 10000): Promise<
 
   const projectId = loadData.cloudaicompanionProject;
   if (!projectId) {
-    throw new QuotaFetchError("parse_error", "No cloudaicompanionProject found in loadCodeAssist response.");
+    throw new QuotaFetchError(
+      "parse_error",
+      "No cloudaicompanionProject found in loadCodeAssist response."
+    );
   }
 
   const quotaRes = await fetchWithTimeout(
@@ -334,7 +361,9 @@ export async function fetchGeminiRateLimits(timeoutMs: number = 10000): Promise<
   try {
     quotaData = (quotaText.trim() ? JSON.parse(quotaText) : {}) as Record<string, unknown>;
   } catch (e) {
-    throw new QuotaFetchError("parse_error", "retrieveUserQuota returned invalid JSON.", { cause: e });
+    throw new QuotaFetchError("parse_error", "retrieveUserQuota returned invalid JSON.", {
+      cause: e
+    });
   }
 
   const usage: GeminiUsage = {};
@@ -351,7 +380,9 @@ export async function fetchGeminiRateLimits(timeoutMs: number = 10000): Promise<
       const usedRaw = (1.0 - remainingFraction) * 100;
       const used = Math.round(usedRaw * 1_000_000) / 1_000_000;
 
-      const resetAt = bucket.resetTime ? new Date(bucket.resetTime as string) : new Date(Date.now() + 3600000);
+      const resetAt = bucket.resetTime
+        ? new Date(bucket.resetTime as string)
+        : new Date(Date.now() + 3600000);
       if (Number.isNaN(resetAt.getTime())) {
         throw new QuotaFetchError("parse_error", "Gemini quota bucket resetTime was invalid.");
       }
@@ -362,4 +393,3 @@ export async function fetchGeminiRateLimits(timeoutMs: number = 10000): Promise<
 
   return usage;
 }
-

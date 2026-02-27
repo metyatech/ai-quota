@@ -10,12 +10,12 @@ export type { CopilotUsage } from "./types.js";
 /**
  * Resolves a GitHub Copilot token from environment variables,
  * local GitHub CLI configuration files, or the 'gh' CLI command.
- * 
+ *
  * Order of discovery:
  * 1. GITHUB_TOKEN environment variable
  * 2. GitHub CLI configuration file (~/.config/gh/hosts.yml)
  * 3. `gh auth token` command execution
- * 
+ *
  * @param verbose - Whether to print debug information to stderr
  * @returns The discovered token or null if no token source is found
  */
@@ -178,11 +178,11 @@ export function parseCopilotQuotaHeader(
 
 /**
  * Fetches Copilot quota usage from the GitHub Copilot internal API.
- * 
- * Requires a valid GitHub personal access token with the appropriate `copilot` 
+ *
+ * Requires a valid GitHub personal access token with the appropriate `copilot`
  * scope. This function calls the `/copilot_internal/user` endpoint and parses
  * both the JSON body and response headers for quota snapshots.
- * 
+ *
  * @param options - Options containing the token and optional configuration
  * @param now - Reference date for parsing (default: current system time)
  * @returns A promise resolving to CopilotUsage or null if the request fails
@@ -248,9 +248,13 @@ export async function fetchCopilotRateLimits(
   } catch (error) {
     if (error instanceof QuotaFetchError) throw error;
     if (error instanceof Error && error.name === "AbortError") {
-      throw new QuotaFetchError("timeout", "Copilot user info request timed out.", { cause: error });
+      throw new QuotaFetchError("timeout", "Copilot user info request timed out.", {
+        cause: error
+      });
     }
-    throw new QuotaFetchError("network_error", "Copilot user info request failed.", { cause: error });
+    throw new QuotaFetchError("network_error", "Copilot user info request failed.", {
+      cause: error
+    });
   } finally {
     clearTimeout(timeout);
   }

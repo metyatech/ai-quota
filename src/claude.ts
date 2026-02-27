@@ -21,9 +21,13 @@ function readClaudeCredentials(): { accessToken: string; expiresAt: number } | n
     try {
       parsed = JSON.parse(raw) as unknown;
     } catch (e) {
-      throw new QuotaFetchError("parse_error", `Failed to parse Claude credentials at ${credsPath}`, {
-        cause: e
-      });
+      throw new QuotaFetchError(
+        "parse_error",
+        `Failed to parse Claude credentials at ${credsPath}`,
+        {
+          cause: e
+        }
+      );
     }
     if (!parsed || typeof parsed !== "object") return null;
     const record = parsed as Record<string, unknown>;
@@ -48,17 +52,15 @@ function readClaudeCredentials(): { accessToken: string; expiresAt: number } | n
 
 /**
  * Fetches Claude usage data from the Anthropic OAuth usage API.
- * 
+ *
  * This function attempts to read credentials from the Claude desktop application's
  * local storage (`~/.claude/.credentials.json`) and calls the Anthropic usage API.
- * 
+ *
  * @param timeoutMs - Request timeout in milliseconds (default: 5000ms)
- * @returns A promise resolving to ClaudeUsageData or null if credentials are 
+ * @returns A promise resolving to ClaudeUsageData or null if credentials are
  *          missing, expired, or the API request fails.
  */
-export async function fetchClaudeRateLimits(
-  timeoutMs: number = 5000
-): Promise<ClaudeUsageData> {
+export async function fetchClaudeRateLimits(timeoutMs: number = 5000): Promise<ClaudeUsageData> {
   try {
     const creds = readClaudeCredentials();
     if (!creds) {
@@ -94,8 +96,7 @@ export async function fetchClaudeRateLimits(
     }
 
     if (!res.ok) {
-      const reason =
-        res.status === 401 || res.status === 403 ? "auth_failed" : "api_error";
+      const reason = res.status === 401 || res.status === 403 ? "auth_failed" : "api_error";
       throw new QuotaFetchError(
         reason,
         `Claude usage request failed (${res.status} ${res.statusText}).`,

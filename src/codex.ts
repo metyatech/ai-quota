@@ -149,7 +149,11 @@ export function rateLimitSnapshotToStatus(
     });
   }
 
-  return { windows, credits: typeof snapshot.credits === "number" ? snapshot.credits : null, raw: "" };
+  return {
+    windows,
+    credits: typeof snapshot.credits === "number" ? snapshot.credits : null,
+    raw: ""
+  };
 }
 
 type AuthJson = {
@@ -171,7 +175,9 @@ async function readAuthJson(authPath: string): Promise<AuthJson> {
         cause: e
       });
     }
-    throw new QuotaFetchError("api_error", `Failed to read Codex auth.json at ${authPath}`, { cause: e });
+    throw new QuotaFetchError("api_error", `Failed to read Codex auth.json at ${authPath}`, {
+      cause: e
+    });
   }
 
   try {
@@ -249,7 +255,9 @@ async function fetchCodexRateLimitsFromApi(
   try {
     data = bodyText.trim() ? JSON.parse(bodyText) : null;
   } catch (e) {
-    throw new QuotaFetchError("parse_error", "Codex usage response was not valid JSON.", { cause: e });
+    throw new QuotaFetchError("parse_error", "Codex usage response was not valid JSON.", {
+      cause: e
+    });
   }
 
   if (!data || typeof data !== "object") {
@@ -305,11 +313,16 @@ async function fetchCodexRateLimitsFromApi(
   const primary = convertApiWindow(primaryCandidate);
   const secondary = convertApiWindow(secondaryCandidate);
   if (!primary && !secondary) {
-    throw new QuotaFetchError("parse_error", "Codex usage response missing primary/secondary windows.");
+    throw new QuotaFetchError(
+      "parse_error",
+      "Codex usage response missing primary/secondary windows."
+    );
   }
 
   const planType = typeof record["plan_type"] === "string" ? (record["plan_type"] as string) : null;
-  const credits = Object.prototype.hasOwnProperty.call(record, "credits") ? record["credits"] : undefined;
+  const credits = Object.prototype.hasOwnProperty.call(record, "credits")
+    ? record["credits"]
+    : undefined;
 
   return { primary, secondary, planType, plan_type: planType, credits };
 }
