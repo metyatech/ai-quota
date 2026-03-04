@@ -1,15 +1,10 @@
 {
-  // Rules source. Use github:owner/repo@ref or a local path.
-  "source": "github:metyatech/agent-rules",
-  // Domain folders under rules/domains.
-  "domains": [],
-  // Additional local rule files to append.
+  "source": "github:metyatech/agent-rules@HEAD",
+  "domains": ["node"],
   "extra": [],
-  // Claude Code companion output settings.
   "claude": {
     "enabled": true,
     "output": "CLAUDE.md"
   },
-  // Output file name.
   "output": "AGENTS.md"
 }
