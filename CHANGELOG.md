@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-03-06
+
+### Fixed
+
+- **Claude OAuth refresh:** When usage fetch returns auth/rate-limit errors (401/403/429), refresh the OAuth access token and retry once to avoid false `FETCH_FAILED` results caused by stale local credentials.
+
 ## [1.1.0] - 2026-02-21
 
 ### Added
