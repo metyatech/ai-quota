@@ -113,6 +113,8 @@ ai-quota --json
 | Copilot | `GITHUB_TOKEN` env var, `gh auth token` CLI, or `hosts.yml` |
 | Codex   | `~/.codex/auth.json`                                        |
 
+Claude token behavior: `ai-quota` automatically refreshes Claude OAuth tokens using `refreshToken` when needed (including stale-token `401/403/429` retries).
+
 Exit code is `0` on success. Exit code `1` if any agent fetch fails.
 
 ### Advanced usage (SDK)
