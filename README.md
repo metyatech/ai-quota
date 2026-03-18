@@ -249,8 +249,9 @@ npm run verify    # lint + test + build (full CI suite)
 ## Release and publish
 
 `ai-quota` publishes to npm from GitHub Actions via npm trusted publishing (OIDC). The
-release workflow lives in `.github/workflows/publish.yml` and runs when a GitHub release is
-published.
+release workflow lives in `.github/workflows/publish.yml`, runs when a GitHub release is
+published, and uses Node.js 24 because npm trusted publishing requires a modern npm/Node
+runtime in CI.
 
 Release flow:
 
