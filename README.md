@@ -246,6 +246,29 @@ npm run format    # Prettier format
 npm run verify    # lint + test + build (full CI suite)
 ```
 
+## Release and publish
+
+`ai-quota` publishes to npm from GitHub Actions via npm trusted publishing (OIDC). The
+release workflow lives in `.github/workflows/publish.yml` and runs when a GitHub release is
+published.
+
+Release flow:
+
+```bash
+npm version patch --no-git-tag-version
+# update CHANGELOG.md as needed
+npm run verify
+git add package.json package-lock.json CHANGELOG.md
+git commit -m "Release vX.Y.Z"
+git push origin main
+git tag vX.Y.Z
+git push origin vX.Y.Z
+```
+
+Then publish a GitHub release for the `vX.Y.Z` tag. GitHub Actions will run the publish
+workflow, publish the package to npm, and attach npm provenance automatically when trusted
+publishing is configured for the package.
+
 ## Environment variables
 
 | Variable                                  | Used by | Purpose                                         |
