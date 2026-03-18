@@ -1,38 +1,118 @@
-import { describe, expect, it, vi, afterEach } from "vitest";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseCopilotUserInfo, parseCopilotQuotaHeader, getCopilotToken } from "../src/copilot.js";
 
 describe("getCopilotToken", () => {
-  const originalEnv = process.env;
+  const originalEnv = { ...process.env };
+  const originalPlatformDescriptor = Object.getOwnPropertyDescriptor(process, "platform");
+  const tempHomes = new Set<string>();
+
+  function createTempHome(): string {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), "ai-quota-copilot-"));
+    tempHomes.add(home);
+    return home;
+  }
+
+  function setPlatform(value: NodeJS.Platform): void {
+    Object.defineProperty(process, "platform", { value, configurable: true });
+  }
 
   afterEach(() => {
     process.env = { ...originalEnv };
+    if (originalPlatformDescriptor) {
+      Object.defineProperty(process, "platform", originalPlatformDescriptor);
+    }
+    for (const home of tempHomes) {
+      fs.rmSync(home, { recursive: true, force: true });
+    }
+    tempHomes.clear();
     vi.restoreAllMocks();
   });
 
-  it("returns token from GITHUB_TOKEN environment variable", () => {
-    process.env.GITHUB_TOKEN = "test-token";
-    expect(getCopilotToken()).toBe("test-token");
+  it("prefers COPILOT_GITHUB_TOKEN over GH_TOKEN and GITHUB_TOKEN", () => {
+    process.env.COPILOT_GITHUB_TOKEN = "copilot-token";
+    process.env.GH_TOKEN = "gh-token";
+    process.env.GITHUB_TOKEN = "github-token";
+
+    expect(getCopilotToken()).toBe("copilot-token");
+  });
+
+  it("returns token from GH_TOKEN when the Copilot-specific env var is absent", () => {
+    delete process.env.COPILOT_GITHUB_TOKEN;
+    process.env.GH_TOKEN = "gh-token";
+    process.env.GITHUB_TOKEN = "github-token";
+
+    expect(getCopilotToken()).toBe("gh-token");
+  });
+
+  it("returns plaintext token from Copilot CLI config when available", () => {
+    delete process.env.COPILOT_GITHUB_TOKEN;
+    delete process.env.GH_TOKEN;
+    delete process.env.GITHUB_TOKEN;
+
+    const home = createTempHome();
+    const configDir = path.join(home, ".copilot");
+    fs.mkdirSync(configDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(configDir, "config.json"),
+      JSON.stringify({ access_token: "gho_plaintext_token_abcdefghijkl" }),
+      "utf8"
+    );
+    expect(getCopilotToken(false, { homeDir: home })).toBe("gho_plaintext_token_abcdefghijkl");
+  });
+
+  it("returns token from Windows Credential Manager when Copilot CLI is signed in", () => {
+    delete process.env.COPILOT_GITHUB_TOKEN;
+    delete process.env.GH_TOKEN;
+    delete process.env.GITHUB_TOKEN;
+    setPlatform("win32");
+
+    const home = createTempHome();
+    const configDir = path.join(home, ".copilot");
+    fs.mkdirSync(configDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(configDir, "config.json"),
+      JSON.stringify({
+        last_logged_in_user: {
+          host: "https://github.com",
+          login: "metyatech"
+        }
+      }),
+      "utf8"
+    );
+    const execFileText = (command: string): string => {
+      const executable = command.toLowerCase();
+      if (executable.endsWith("cmdkey.exe")) {
+        return "Currently stored credentials:\r\n    Target: LegacyGeneric:target=copilot-cli/https://github.com:metyatech\r\n";
+      }
+      if (executable.endsWith("pwsh.exe") || executable.endsWith("powershell.exe")) {
+        return Buffer.from("gho_windows_token_abcdefghijklmnop", "utf8").toString("base64");
+      }
+      throw new Error(`unexpected command: ${command}`);
+    };
+
+    expect(
+      getCopilotToken(false, {
+        homeDir: home,
+        platform: "win32",
+        execFileText
+      })
+    ).toBe("gho_windows_token_abcdefghijklmnop");
   });
 
   it("returns null when no token source is available", () => {
+    delete process.env.COPILOT_GITHUB_TOKEN;
+    delete process.env.GH_TOKEN;
     delete process.env.GITHUB_TOKEN;
-    // Mock fs.existsSync to always return false
-    vi.mock("node:fs", async () => {
-      const actual = (await vi.importActual("node:fs")) as any;
-      return {
-        ...actual,
-        default: { ...actual.default, existsSync: () => false },
-        existsSync: () => false
-      };
-    });
-    // Mock child_process.execSync to throw
-    vi.mock("node:child_process", () => ({
-      execSync: () => {
-        throw new Error("not found");
-      }
-    }));
 
-    expect(getCopilotToken()).toBeNull();
+    const home = createTempHome();
+    const execFileText = (): string => {
+      throw new Error("not found");
+    };
+
+    expect(getCopilotToken(false, { homeDir: home, platform: "win32", execFileText })).toBeNull();
   });
 });
 

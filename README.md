@@ -106,14 +106,15 @@ ai-quota --json
 
 ### Credential lookup
 
-| Agent   | Source                                                      |
-| ------- | ----------------------------------------------------------- |
-| Claude  | `~/.claude/.credentials.json`                               |
-| Gemini  | `~/.gemini/oauth_creds.json`                                |
-| Copilot | `GITHUB_TOKEN` env var, `gh auth token` CLI, or `hosts.yml` |
-| Codex   | `~/.codex/auth.json`                                        |
+| Agent   | Source                                                                                                                     |
+| ------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Claude  | `~/.claude/.credentials.json`                                                                                              |
+| Gemini  | `~/.gemini/oauth_creds.json`                                                                                               |
+| Copilot | `COPILOT_GITHUB_TOKEN`, `GH_TOKEN`, `GITHUB_TOKEN`, Copilot CLI stored OAuth token, `gh auth token`, or legacy `hosts.yml` |
+| Codex   | `~/.codex/auth.json`                                                                                                       |
 
 Claude token behavior: `ai-quota` automatically refreshes Claude OAuth tokens using `refreshToken` when needed (including stale-token `401/403/429` retries).
+Copilot token behavior: if you already authenticated with `copilot login`, `ai-quota` will reuse that stored OAuth token automatically, including Windows Credential Manager entries created by Copilot CLI.
 
 Exit code is `0` on success. Exit code `1` if any agent fetch fails.
 
