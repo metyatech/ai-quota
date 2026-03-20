@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.5] - 2026-03-20
+
+### Fixed
+
+- **CLI default exit behavior:** Keep default command execution successful (`exit code 0`) when quota/status results are reported, including partial provider failures such as `LOGIN_REQUIRED`; `--strict` continues to fail on provider fetch errors.
+
+### Changed
+
+- **Release publish guardrails:** Strengthened trusted publishing workflow verification and documented the canonical GitHub Release -> GitHub Actions -> npm trusted publishing path.
+
 ## [1.2.4] - 2026-03-18
 
 ### Fixed
