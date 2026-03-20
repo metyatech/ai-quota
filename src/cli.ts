@@ -7,11 +7,12 @@ import {
   fetchAllRateLimits,
   runMcpServer,
   SUPPORTED_AGENTS,
-  SupportedAgent,
+  type SupportedAgent,
   agentToSdkKey
 } from "./index.js";
 import { getVersion } from "./utils.js";
 import { buildHumanRows, formatHumanTable } from "./human-output.js";
+import { CliUsageError, parseCliRunOptions, shouldExitNonZero } from "./cli-core.js";
 
 function showHelp(): void {
   process.stdout.write(
@@ -21,6 +22,7 @@ function showHelp(): void {
       "  ai-quota --json            Output machine-readable JSON\n" +
       "  ai-quota --mcp             Start as an MCP server\n" +
       "  ai-quota --quiet           Suppress non-error output\n" +
+      "  ai-quota --strict          Exit non-zero if any provider fetch errors\n" +
       "  ai-quota --verbose         Show extra debug info on stderr\n" +
       "  ai-quota --help            Show this help message\n" +
       "  ai-quota --version         Show version\n\n" +
@@ -28,6 +30,7 @@ function showHelp(): void {
       SUPPORTED_AGENTS.join(", ") +
       "\n" +
       "Output: table with AGENT, STATUS, LIMIT, DETAILS\n" +
+      "Exit codes: default 0 when status report succeeds; use --strict for fetch-error exit.\n" +
       "Note: Use --json for scripts.\n"
   );
 }
@@ -50,11 +53,10 @@ async function main(): Promise<void> {
     return;
   }
 
-  const jsonMode = args.includes("--json");
-  const quiet = args.includes("--quiet");
-  const verbose = args.includes("--verbose");
-
-  const requestedAgents = args.filter((a) => !a.startsWith("-")) as SupportedAgent[];
+  const { jsonMode, quiet, verbose, strict, requestedAgents } = parseCliRunOptions(
+    args,
+    SUPPORTED_AGENTS
+  );
 
   const allResults = await fetchAllRateLimits({
     agents: requestedAgents.length > 0 ? requestedAgents : undefined,
@@ -66,15 +68,12 @@ async function main(): Promise<void> {
     requestedAgents.length > 0 ? requestedAgents : [...SUPPORTED_AGENTS]
   ) as SupportedAgent[];
 
-  let anyError = false;
   const outputJson: Record<string, unknown> = {};
 
   for (const agent of agentsToDisplay) {
     const sdkKey = agentToSdkKey(agent);
     const res = (allResults as any)[sdkKey];
     if (!res) continue;
-
-    if (res.status === "error") anyError = true;
 
     if (jsonMode) {
       outputJson[agent] = {
@@ -96,10 +95,17 @@ async function main(): Promise<void> {
     process.stdout.write(JSON.stringify(outputJson, null, 2) + "\n");
   }
 
-  if (anyError) process.exitCode = 1;
+  if (shouldExitNonZero(allResults, strict)) process.exitCode = 1;
 }
 
 main().catch((err) => {
+  if (err instanceof CliUsageError) {
+    process.stderr.write(`ai-quota: ${err.message}\n`);
+    process.stderr.write("Run 'ai-quota --help' for usage.\n");
+    process.exitCode = 1;
+    return;
+  }
+
   process.stderr.write(`ai-quota: fatal error: ${err}\n`);
   process.exitCode = 1;
 });

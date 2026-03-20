@@ -25,6 +25,7 @@ ai-quota [agent]           Show quota for all agents, or a single named agent
 ai-quota --json            Machine-readable JSON output
 ai-quota --mcp             Start as an MCP server
 ai-quota --quiet           Suppress non-error output (useful in scripts)
+ai-quota --strict          Exit non-zero if any provider fetch returns error
 ai-quota --verbose         Print debug info to stderr
 ai-quota --help            Show usage information
 ai-quota --version         Show version
@@ -116,7 +117,9 @@ ai-quota --json
 Claude token behavior: `ai-quota` automatically refreshes Claude OAuth tokens using `refreshToken` when needed (including stale-token `401/403/429` retries).
 Copilot token behavior: if you already authenticated with `copilot login`, `ai-quota` will reuse that stored OAuth token automatically, including Windows Credential Manager entries created by Copilot CLI.
 
-Exit code is `0` on success. Exit code `1` if any agent fetch fails.
+Exit code is `0` when the command successfully reports status output (table or JSON), even if some providers are unavailable/login-required/waiting for reset.
+Use `--strict` to make provider fetch errors fail with exit code `1`.
+Invalid usage (unknown option/agent) and fatal command failures also exit with `1`.
 
 ### Advanced usage (SDK)
 
