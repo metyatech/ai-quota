@@ -20,4 +20,4 @@ jobs:
           package-manager-cache: false
       - run: npm ci
       - run: npm run verify
-      - run: npm publish --access public
+      - run: npm publish --access public --provenance

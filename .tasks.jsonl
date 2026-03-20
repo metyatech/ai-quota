@@ -3,3 +3,4 @@
 {"id":"POtNe87V","description":"Enable npm trusted publishing and Dependabot for ai-quota, and encode the policy in global rules","stage":"done","createdAt":"2026-03-18T04:57:03.771Z","updatedAt":"2026-03-18T05:36:37.172Z"}
 {"id":"n72dM3Up","description":"Delete failed v1.2.3 GitHub release and tag from ai-quota","stage":"done","createdAt":"2026-03-18T05:55:12.394Z","updatedAt":"2026-03-18T05:56:22.441Z"}
 {"id":"CyTrEfc9","description":"Fix ai-quota default exit code semantics for status-listing command","stage":"done","createdAt":"2026-03-20T05:50:23.527Z","updatedAt":"2026-03-20T05:54:05.004Z","committedEventId":"JU-Mwz1guCEI-EOA"}
+{"id":"HSBWhdZw","description":"Configure GitHub Actions npm trusted publishing for release-time auto publish","stage":"in-progress","createdAt":"2026-03-20T06:07:05.186Z","updatedAt":"2026-03-20T06:09:15.611Z"}

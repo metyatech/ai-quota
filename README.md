@@ -256,6 +256,16 @@ release workflow lives in `.github/workflows/publish.yml`, runs when a GitHub re
 published, and uses Node.js 24 because npm trusted publishing requires a modern npm/Node
 runtime in CI.
 
+Canonical publish path: create/publish a GitHub Release for a `vX.Y.Z` tag and let
+GitHub Actions publish to npm. Do not use long-lived `NPM_TOKEN` secrets for this package.
+
+One-time npm setup (outside this repo):
+
+1. In npm package settings for `@metyatech/ai-quota`, add a trusted publisher for
+   `metyatech/ai-quota` with workflow `.github/workflows/publish.yml` and trigger
+   environment matching published releases.
+2. Keep that npm trusted publisher binding active; no npm automation token is required.
+
 Release flow:
 
 ```bash
